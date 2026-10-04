@@ -6,8 +6,8 @@
   <title>Gimkit Community Web</title>
   <style>
     body { font-family: Arial, sans-serif; padding: 20px; }
-    #activeGamesList { list-style: none; padding: 0; margin-top: 12px; }
-    #activeGamesList li { background: #f3f4f6; border-radius: 6px; padding: 8px 12px; margin: 6px 0; display:flex; justify-content:space-between; align-items:center; }
+    #activeGamesList, #activeMeetingsList { list-style: none; padding: 0; margin-top: 12px; }
+    #activeGamesList li, #activeMeetingsList li { background: #f3f4f6; border-radius: 6px; padding: 8px 12px; margin: 6px 0; display:flex; justify-content:space-between; align-items:center; }
     button { margin-left: 8px; }
     .small { font-size: 0.9rem; color: #555; }
   </style>
@@ -20,7 +20,7 @@
 <body>
 
 <h1>Gimkit Community Website</h1>
-<p class="small">Add and see active game codes in real-time (all visitors see updates instantly).</p>
+<p class="small">Add and see active game codes and meetings in real-time (all visitors see updates instantly).</p>
 
 <div>
   <label for="ActiveGames">Active Games:</label>
@@ -33,21 +33,25 @@
 
 <div style="margin-top:20px;">
   <label for="activeMeetings">Active Meetings:</label>
-  <div id="activeMeetings">(not implemented)</div>
+  <form id="meetingForm" style="margin-top:8px;">
+    <input id="meetingInput" type="text" placeholder="Enter meeting name or link" aria-label="Meeting" required />
+    <button type="submit">Submit</button>
+  </form>
+  <ul id="activeMeetingsList" aria-live="polite"></ul>
 </div>
 
 <script>
   // ---------- REPLACE THIS WITH YOUR FIREBASE CONFIG ----------
   const firebaseConfig = {
-  apiKey: "AIzaSyDq6eOzOWLd88XG-wFo0LN1O3l2Yyvdfls",
-  authDomain: "gimkit-web.firebaseapp.com",
-  databaseURL: "https://gimkit-web-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "gimkit-web",
-  storageBucket: "gimkit-web.firebasestorage.app",
-  messagingSenderId: "192282058649",
-  appId: "1:192282058649:web:cdcdfdb49c429fc0e33d08",
-  measurementId: "G-TLCCKP056J"
-};
+    apiKey: "AIzaSyDq6eOzOWLd88XG-wFo0LN1O3l2Yyvdfls",
+    authDomain: "gimkit-web.firebaseapp.com",
+    databaseURL: "https://gimkit-web-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "gimkit-web",
+    storageBucket: "gimkit-web.firebasestorage.app",
+    messagingSenderId: "192282058649",
+    appId: "1:192282058649:web:cdcdfdb49c429fc0e33d08",
+    measurementId: "G-TLCCKP056J"
+  };
   // -----------------------------------------------------------
 
   // Initialize Firebase
@@ -55,6 +59,7 @@
   const auth = firebase.auth();
   const db = firebase.database();
   const activeGamesRef = db.ref('activeGames');
+  const activeMeetingsRef = db.ref('activeMeetings');
 
   // Sign in anonymously so we can use auth-protected rules if you choose them
   auth.signInAnonymously().catch(err => {
@@ -65,8 +70,13 @@
   const gameCodeInput = document.getElementById('gameCodeInput');
   const activeGamesList = document.getElementById('activeGamesList');
 
+  const meetingForm = document.getElementById('meetingForm');
+  const meetingInput = document.getElementById('meetingInput');
+  const activeMeetingsList = document.getElementById('activeMeetingsList');
+
   // Local mapping of DB keys -> list items
   const listItems = {};
+  const meetingItems = {};
 
   // Submit a new game code
   gameForm.addEventListener('submit', (e) => {
@@ -74,20 +84,42 @@
     const raw = gameCodeInput.value.trim();
     if (!raw) return;
     const code = raw.toUpperCase().replace(/\s+/g, '');
-    // Avoid duplicates by checking child where code == code
     activeGamesRef.orderByChild('code').equalTo(code).once('value', snap => {
       if (snap.exists()) {
         gameCodeInput.value = '';
         gameCodeInput.focus();
         return;
       }
-      activeGamesRef.push({ code, createdAt: Date.now() });
+      const newRef = activeGamesRef.push();
+      newRef.set({ code, createdAt: Date.now() }).catch(err => {
+        console.error('Write failed (games):', err);
+      });
       gameCodeInput.value = '';
       gameCodeInput.focus();
     });
   });
 
-  // Add item when child is added
+  meetingForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const raw = meetingInput.value.trim();
+    if (!raw) return;
+    const title = raw.replace(/\s+/g, ' ');
+    activeMeetingsRef.orderByChild('title').equalTo(title).once('value', snap => {
+      if (snap.exists()) {
+        meetingInput.value = '';
+        meetingInput.focus();
+        return;
+      }
+      const newRef = activeMeetingsRef.push();
+      newRef.set({ title, createdAt: Date.now() }).catch(err => {
+        console.error('Write failed (meetings):', err);
+      });
+      meetingInput.value = '';
+      meetingInput.focus();
+    });
+  });
+
+  // Add game item when child is added
   activeGamesRef.on('child_added', snapshot => {
     const key = snapshot.key;
     const val = snapshot.val();
@@ -110,7 +142,6 @@
     activeGamesList.appendChild(li);
   });
 
-  // Remove from UI when child removed
   activeGamesRef.on('child_removed', snapshot => {
     const key = snapshot.key;
     const li = listItems[key];
@@ -118,7 +149,6 @@
     delete listItems[key];
   });
 
-  // Keep list ordered by createdAt (optional)
   activeGamesRef.on('value', snapshot => {
     const items = [];
     snapshot.forEach(child => {
@@ -129,7 +159,6 @@
     activeGamesList.innerHTML = '';
     items.forEach(item => {
       const li = document.createElement('li');
-      li.innerHTML = '';
       const text = document.createElement('span');
       text.textContent = item.code;
       const removeBtn = document.createElement('button');
@@ -140,6 +169,58 @@
       li.appendChild(removeBtn);
       activeGamesList.appendChild(li);
       listItems[item.key] = li;
+    });
+  });
+
+  activeMeetingsRef.on('child_added', snapshot => {
+    const key = snapshot.key;
+    const val = snapshot.val();
+    if (!val || !val.title) return;
+    const li = document.createElement('li');
+    const text = document.createElement('span');
+    text.textContent = val.title;
+    const btns = document.createElement('span');
+
+    const removeBtn = document.createElement('button');
+    removeBtn.textContent = 'Remove';
+    removeBtn.type = 'button';
+    removeBtn.addEventListener('click', () => activeMeetingsRef.child(key).remove());
+
+    btns.appendChild(removeBtn);
+    li.appendChild(text);
+    li.appendChild(btns);
+
+    meetingItems[key] = li;
+    activeMeetingsList.appendChild(li);
+  });
+
+  activeMeetingsRef.on('child_removed', snapshot => {
+    const key = snapshot.key;
+    const li = meetingItems[key];
+    if (li && li.parentNode) li.parentNode.removeChild(li);
+    delete meetingItems[key];
+  });
+
+  activeMeetingsRef.on('value', snapshot => {
+    const items = [];
+    snapshot.forEach(child => {
+      const v = child.val();
+      if (v && v.title) items.push({ key: child.key, title: v.title, createdAt: v.createdAt || 0 });
+    });
+    items.sort((a, b) => a.createdAt - b.createdAt);
+    activeMeetingsList.innerHTML = '';
+    items.forEach(item => {
+      const li = document.createElement('li');
+      const text = document.createElement('span');
+      text.textContent = item.title;
+      const removeBtn = document.createElement('button');
+      removeBtn.textContent = 'Remove';
+      removeBtn.type = 'button';
+      removeBtn.addEventListener('click', () => activeMeetingsRef.child(item.key).remove());
+      li.appendChild(text);
+      li.appendChild(removeBtn);
+      activeMeetingsList.appendChild(li);
+      meetingItems[item.key] = li;
     });
   });
 </script>
