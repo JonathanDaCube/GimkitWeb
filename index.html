@@ -7,6 +7,8 @@
   <title>Gimkit Community Web</title>
   <style>
     body { font-family: Arial, sans-serif; padding: 20px; }
+    #topNav { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+    #authNav { display:flex; gap:8px; align-items:center; }
     #activeGamesList, #activeMeetingsList, #scheduledMeetingsList { list-style: none; padding: 0; margin-top: 12px; }
     #activeGamesList li, #activeMeetingsList li, #scheduledMeetingsList li { background: #f3f4f6; border-radius: 6px; padding: 8px 12px; margin: 6px 0; display:flex; justify-content:space-between; align-items:center; }
     button { margin-left: 8px; }
@@ -19,6 +21,17 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 <body>
+
+<div id="topNav">
+  <div>
+    <a href="/">Gimkit Community</a>
+  </div>
+  <div id="authNav">
+    <span id="userInfo" class="small" aria-live="polite"></span>
+    <button id="signInBtn" type="button">Sign in with Google</button>
+    <button id="signOutBtn" type="button" style="display:none;">Sign out</button>
+  </div>
+</div>
 
 <h1>Gimkit Community Website</h1>
 <p class="small">Add and see active game codes and meetings in real-time (all visitors see updates instantly).</p>
@@ -80,6 +93,49 @@
   const activeGamesRef = db.ref('activeGames');
   const activeMeetingsRef = db.ref('activeMeetings');
   const scheduledMeetingsRef = db.ref('scheduledMeetings');
+
+  // --- Authentication UI ---
+  const signInBtn = document.getElementById('signInBtn');
+  const signOutBtn = document.getElementById('signOutBtn');
+  const userInfo = document.getElementById('userInfo');
+
+  async function signInWithGoogle() {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    try {
+      await auth.signInWithPopup(provider);
+    } catch (err) {
+      console.error('Google sign-in failed:', err);
+      alert('Sign-in failed: ' + (err.message || err));
+    }
+  }
+
+  function signOut() {
+    auth.signOut().catch(err => console.error('Sign-out failed:', err));
+  }
+
+  auth.onAuthStateChanged(user => {
+    if (!user) {
+      // no user: keep the anonymous sign-in behavior
+      userInfo.textContent = '';
+      signInBtn.style.display = '';
+      signOutBtn.style.display = 'none';
+      return;
+    }
+
+    if (user.isAnonymous) {
+      userInfo.textContent = '(signed in anonymously)';
+      signInBtn.style.display = '';
+      signOutBtn.style.display = 'none';
+    } else {
+      const name = user.displayName || user.email || 'Signed in user';
+      userInfo.textContent = 'Signed in as ' + name;
+      signInBtn.style.display = 'none';
+      signOutBtn.style.display = '';
+    }
+  });
+
+  signInBtn.addEventListener('click', signInWithGoogle);
+  signOutBtn.addEventListener('click', signOut);
 
   // Sign in anonymously so we can use auth-protected rules if you choose them
   auth.signInAnonymously().catch(err => {
