@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gimkit Community Admin</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    button { margin: 6px 8px 6px 0; }
+    .small { font-size: 0.9rem; color: #555; }
+    .section { background:#f8fafc; border-radius:8px; padding:12px; margin:12px 0; }
+    ul { list-style:none; padding:0; }
+    li { background:#fff; border:1px solid #e6eef6; padding:8px; margin:6px 0; display:flex; justify-content:space-between; align-items:center; }
+  </style>
+</head>
+<body>
+  <h1>Gimkit Community — Admin Controls</h1>
+  <p class="small">Administrative controls for managing active games & meetings. Actions are immediate — use with care.</p>
+  <p><a href="/">← Back to site</a></p>
+
+  <div class="section">
+    <h3>Quick Actions</h3>
+    <button id="clearGames">Clear all Active Games</button>
+    <button id="clearMeetings">Clear all Active Meetings</button>
+    <button id="clearScheduled">Clear all Scheduled Meetings</button>
+  </div>
+
+  <div class="section">
+    <h3>Active Games</h3>
+    <ul id="adminActiveGames"></ul>
+  </div>
+
+  <div class="section">
+    <h3>Active Meetings</h3>
+    <ul id="adminActiveMeetings"></ul>
+  </div>
+
+  <div class="section">
+    <h3>Scheduled Meetings</h3>
+    <ul id="adminScheduled"></ul>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script>
+    // same firebase config as the main site (replace if you use environment-specific config)
+    const firebaseConfig = {
+      apiKey: "AIzaSyDq6eOzOWLd88XG-wFo0LN1O3l2Yyvdfls",
+      authDomain: "gimkit-web.firebaseapp.com",
+      databaseURL: "https://gimkit-web-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "gimkit-web",
+      storageBucket: "gimkit-web.firebasestorage.app",
+      messagingSenderId: "192282058649",
+      appId: "1:192282058649:web:cdcdfdb49c429fc0e33d08",
+      measurementId: "G-TLCCKP056J"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.database();
+    const activeGamesRef = db.ref('activeGames');
+    const activeMeetingsRef = db.ref('activeMeetings');
+    const scheduledMeetingsRef = db.ref('scheduledMeetings');
+
+    auth.signInAnonymously().catch(err => console.error('Auth:', err));
+
+    // Elements
+    const adminActiveGames = document.getElementById('adminActiveGames');
+    const adminActiveMeetings = document.getElementById('adminActiveMeetings');
+    const adminScheduled = document.getElementById('adminScheduled');
+
+    // Quick actions
+    document.getElementById('clearGames').addEventListener('click', async () => {
+      if (!confirm('Remove all active games? This deletes all entries under /activeGames.')) return;
+      try {
+        await activeGamesRef.remove();
+        alert('All active games removed.');
+      } catch (e) { console.error(e); alert('Failed to clear active games.'); }
+    });
+
+    document.getElementById('clearMeetings').addEventListener('click', async () => {
+      if (!confirm('Remove all active meetings? This deletes all entries under /activeMeetings.')) return;
+      try { await activeMeetingsRef.remove(); alert('All active meetings removed.'); } catch (e) { console.error(e); alert('Failed to clear active meetings.'); }
+    });
+
+    document.getElementById('clearScheduled').addEventListener('click', async () => {
+      if (!confirm('Remove all scheduled meetings? This deletes all entries under /scheduledMeetings.')) return;
+      try { await scheduledMeetingsRef.remove(); alert('All scheduled meetings removed.'); } catch (e) { console.error(e); alert('Failed to clear scheduled meetings.'); }
+    });
+
+    // Helpers to render lists with individual deletion
+    function renderList(ref, container, label) {
+      const items = {};
+      ref.on('value', snapshot => {
+        container.innerHTML = '';
+        snapshot.forEach(child => {
+          const key = child.key;
+          const val = child.val();
+          const li = document.createElement('li');
+          const left = document.createElement('span');
+          left.textContent = (val.code || val.title || '(no title)') + (val.link ? ' — ' + val.link : '');
+          const removeBtn = document.createElement('button');
+          removeBtn.textContent = 'Remove';
+          removeBtn.addEventListener('click', () => {
+            if (!confirm('Remove this item?')) return;
+            ref.child(key).remove().catch(err => console.error('remove failed:', err));
+          });
+          li.appendChild(left);
+          li.appendChild(removeBtn);
+          container.appendChild(li);
+          items[key] = li;
+        });
+      });
+      return items;
+    }
+
+    renderList(activeGamesRef, adminActiveGames, 'activeGames');
+    renderList(activeMeetingsRef, adminActiveMeetings, 'activeMeetings');
+    renderList(scheduledMeetingsRef, adminScheduled, 'scheduledMeetings');
+  </script>
+
+  <p class="small" style="margin-top: 30px;">This page is for site administrators. Actions here affect live site data.</p>
+</body>
+</html>
