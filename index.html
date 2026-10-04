@@ -23,23 +23,26 @@
 <p class="small">Add and see active game codes and meetings in real-time (all visitors see updates instantly).</p>
 
 <div>
-  <label for="gameCodeInput">Active Games:</label>
+  <h3>Active Games</h3>
+  <ul id="activeGamesList" aria-live="polite"></ul>
+
+  <label for="gameCodeInput" style="display:block; margin-top:8px;">Start your own game</label>
   <form id="gameForm" style="margin-top:8px;">
     <input id="gameCodeInput" type="text" placeholder="Enter game code" aria-label="Game code" required />
-    <button type="submit">Submit</button>
+    <button type="submit">Start Game</button>
   </form>
-  <ul id="activeGamesList" aria-live="polite"></ul>
 </div>
 
 <div style="margin-top:20px;">
-  <label for="meetingInput">Active Meetings:</label>
+  <h3>Active Meetings</h3>
+  <ul id="activeMeetingsList" aria-live="polite"></ul>
+
+  <label for="meetingInput" style="display:block; margin-top:8px;">Start your own meeting</label>
   <form id="meetingForm" style="margin-top:8px; display:inline-block;">
     <input id="meetingInput" type="text" placeholder="Enter meeting name or link" aria-label="Meeting" required />
-    <button type="submit">Submit</button>
+    <button type="submit">Start Meeting</button>
   </form>
-  <ul id="activeMeetingsList" aria-live="polite"></ul>
 </div>
-
 <div style="margin-top:20px;">
   <label for="scheduledMeets" style="display:block; margin-bottom:8px;">Scheduled Meetings</label>
 
