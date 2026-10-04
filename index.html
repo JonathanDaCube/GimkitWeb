@@ -10,7 +10,6 @@
     #activeGamesList li, #activeMeetingsList li, #scheduledMeetingsList li { background: #f3f4f6; border-radius: 6px; padding: 8px 12px; margin: 6px 0; display:flex; justify-content:space-between; align-items:center; }
     button { margin-left: 8px; }
     .small { font-size: 0.9rem; color: #555; }
-    .meta { color: #666; font-size: 0.85rem; margin-left: 8px; }
   </style>
 
   <!-- Firebase (compat for simpler example) -->
@@ -99,13 +98,12 @@
   const meetingItems = {};
   const scheduledItems = {};
 
-  // Utility to format timestamp
   function formatDate(ts) {
     const d = new Date(ts);
     return d.toLocaleString();
   }
 
-  // --- Game submit (unchanged) ---
+  // --- Game submit ---
   gameForm.addEventListener('submit', (e) => {
     e.preventDefault();
     const raw = gameCodeInput.value.trim();
@@ -126,18 +124,16 @@
     });
   });
 
-  // --- Active meeting submit (if user pastes a link directly) ---
+  // --- Active meeting submit ---
   meetingForm.addEventListener('submit', (e) => {
     e.preventDefault();
     const raw = meetingInput.value.trim();
     if (!raw) return;
     const titleOrLink = raw;
-    // If it looks like a URL, store as link; otherwise store as title only
     const isUrl = /https?:\/\//i.test(titleOrLink);
     const payload = { title: titleOrLink, createdAt: Date.now() };
     if (isUrl) payload.link = titleOrLink;
 
-    // push to activeMeetings
     const newRef = activeMeetingsRef.push();
     newRef.set(payload).catch(err => console.error('Write failed (active meeting):', err));
 
@@ -149,7 +145,7 @@
   scheduleForm.addEventListener('submit', (e) => {
     e.preventDefault();
     const title = scheduleTitle.value.trim();
-    const when = scheduleTime.value; // datetime-local value
+    const when = scheduleTime.value;
     if (!title || !when) return;
     const scheduledAt = new Date(when).getTime();
     const newRef = scheduledMeetingsRef.push();
@@ -214,7 +210,7 @@
     });
   });
 
-  // --- Active meetings UI listeners (show link if present) ---
+  // --- Active meetings UI listeners ---
   activeMeetingsRef.on('child_added', snapshot => {
     const key = snapshot.key;
     const val = snapshot.val();
@@ -222,14 +218,6 @@
     const li = document.createElement('li');
     const left = document.createElement('span');
     left.textContent = val.title;
-    if (val.scheduledAt) {
-      const meta = document.createElement('span');
-      meta.className = 'meta';
-      meta.textContent = ` (scheduled for ${formatDate(val.scheduledAt)})`;
-      left.appendChild(meta);
-    }
-
-    const btns = document.createElement('span');
 
     if (val.link) {
       const join = document.createElement('a');
@@ -237,7 +225,8 @@
       join.textContent = 'Join';
       join.target = '_blank';
       join.style.marginRight = '8px';
-      btns.appendChild(join);
+      left.appendChild(document.createTextNode(' '));
+      left.appendChild(join);
     }
 
     const removeBtn = document.createElement('button');
@@ -245,9 +234,8 @@
     removeBtn.type = 'button';
     removeBtn.addEventListener('click', () => activeMeetingsRef.child(key).remove());
 
-    btns.appendChild(removeBtn);
     li.appendChild(left);
-    li.appendChild(btns);
+    li.appendChild(removeBtn);
 
     meetingItems[key] = li;
     activeMeetingsList.appendChild(li);
@@ -264,7 +252,7 @@
     const items = [];
     snapshot.forEach(child => {
       const v = child.val();
-      if (v && v.title) items.push({ key: child.key, title: v.title, link: v.link, scheduledAt: v.scheduledAt, createdAt: v.createdAt || 0 });
+      if (v && v.title) items.push({ key: child.key, title: v.title, link: v.link, createdAt: v.createdAt || 0 });
     });
     items.sort((a, b) => a.createdAt - b.createdAt);
     activeMeetingsList.innerHTML = '';
@@ -272,46 +260,35 @@
       const li = document.createElement('li');
       const left = document.createElement('span');
       left.textContent = item.title;
-      if (item.scheduledAt) {
-        const meta = document.createElement('span');
-        meta.className = 'meta';
-        meta.textContent = ` (scheduled for ${formatDate(item.scheduledAt)})`;
-        left.appendChild(meta);
-      }
-
-      const btns = document.createElement('span');
       if (item.link) {
         const join = document.createElement('a');
         join.href = item.link;
         join.textContent = 'Join';
         join.target = '_blank';
         join.style.marginRight = '8px';
-        btns.appendChild(join);
+        left.appendChild(document.createTextNode(' '));
+        left.appendChild(join);
       }
       const removeBtn = document.createElement('button');
       removeBtn.textContent = 'Remove';
       removeBtn.type = 'button';
       removeBtn.addEventListener('click', () => activeMeetingsRef.child(item.key).remove());
-      btns.appendChild(removeBtn);
       li.appendChild(left);
-      li.appendChild(btns);
+      li.appendChild(removeBtn);
       activeMeetingsList.appendChild(li);
       meetingItems[item.key] = li;
     });
   });
 
-  // --- Scheduled meetings UI listeners ---
+  // --- Scheduled meetings UI listeners (same format as the others) ---
   scheduledMeetingsRef.on('child_added', snapshot => {
     const key = snapshot.key;
     const val = snapshot.val();
     if (!val || !val.title) return;
+
     const li = document.createElement('li');
-    const left = document.createElement('span');
-    left.textContent = val.title;
-    const meta = document.createElement('span');
-    meta.className = 'meta';
-    meta.textContent = ` (scheduled for ${formatDate(val.scheduledAt)})`;
-    left.appendChild(meta);
+    const text = document.createElement('span');
+    text.textContent = `${val.title} (${formatDate(val.scheduledAt)})`;
 
     const btns = document.createElement('span');
     const addLinkBtn = document.createElement('button');
@@ -320,10 +297,8 @@
     addLinkBtn.addEventListener('click', async () => {
       const link = prompt('Enter meeting link (https://...) for "' + val.title + '"');
       if (!link) return;
-      // create active meeting with link and scheduledAt
       const newRef = activeMeetingsRef.push();
       await newRef.set({ title: val.title, link, scheduledAt: val.scheduledAt, createdAt: Date.now() }).catch(err => console.error('Activate failed:', err));
-      // remove scheduled entry
       scheduledMeetingsRef.child(key).remove().catch(err => console.error('Failed to remove scheduled:', err));
     });
 
@@ -335,7 +310,7 @@
     btns.appendChild(addLinkBtn);
     btns.appendChild(removeBtn);
 
-    li.appendChild(left);
+    li.appendChild(text);
     li.appendChild(btns);
 
     scheduledItems[key] = li;
@@ -359,12 +334,8 @@
     scheduledMeetingsList.innerHTML = '';
     items.forEach(item => {
       const li = document.createElement('li');
-      const left = document.createElement('span');
-      left.textContent = item.title;
-      const meta = document.createElement('span');
-      meta.className = 'meta';
-      meta.textContent = ` (scheduled for ${formatDate(item.scheduledAt)})`;
-      left.appendChild(meta);
+      const text = document.createElement('span');
+      text.textContent = `${item.title} (${formatDate(item.scheduledAt)})`;
 
       const btns = document.createElement('span');
       const addLinkBtn = document.createElement('button');
@@ -386,7 +357,7 @@
       btns.appendChild(addLinkBtn);
       btns.appendChild(removeBtn);
 
-      li.appendChild(left);
+      li.appendChild(text);
       li.appendChild(btns);
       scheduledMeetingsList.appendChild(li);
       scheduledItems[item.key] = li;
