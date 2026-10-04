@@ -1,2 +1,2 @@
 # GimkitWeb
-The gimkt website
+The gimkit website
