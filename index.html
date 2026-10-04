@@ -96,23 +96,36 @@
   const signOutBtn = document.getElementById('signOutBtn');
   const userInfo = document.getElementById('userInfo');
 
-  async function signInWithGoogle() {
+  function signInWithGoogle() {
     const provider = new firebase.auth.GoogleAuthProvider();
-    try {
-      await auth.signInWithPopup(provider);
-    } catch (err) {
-      console.error('Google sign-in failed:', err);
-      alert('Sign-in failed: ' + (err.message || err));
-    }
+    auth.signInWithRedirect(provider);
   }
 
   function signOut() {
     auth.signOut().catch(err => console.error('Sign-out failed:', err));
   }
 
+  auth.getRedirectResult()
+    .then((result) => {
+      if (result && result.user) {
+        console.log('Signed in via redirect:', result.user.displayName || result.user.email);
+      } else if (!auth.currentUser) {
+        auth.signInAnonymously().catch(err => {
+          console.error('Auth error:', err);
+        });
+      }
+    })
+    .catch((error) => {
+      console.error('Redirect sign-in error:', error);
+      if (!auth.currentUser) {
+        auth.signInAnonymously().catch(err => {
+          console.error('Auth error:', err);
+        });
+      }
+    });
+
   auth.onAuthStateChanged(user => {
     if (!user) {
-      // no user: keep the anonymous sign-in behavior
       userInfo.textContent = '';
       signInBtn.style.display = '';
       signOutBtn.style.display = 'none';
@@ -133,11 +146,6 @@
 
   signInBtn.addEventListener('click', signInWithGoogle);
   signOutBtn.addEventListener('click', signOut);
-
-  // Sign in anonymously so we can use auth-protected rules if you choose them
-  auth.signInAnonymously().catch(err => {
-    console.error('Auth error:', err);
-  });
 
   // --- Elements ---
   const gameForm = document.getElementById('gameForm');
