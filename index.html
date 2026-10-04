@@ -1,20 +1,97 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Gimkit Community Web</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Gimkit Community Web</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+
+    #activeGamesList {
+      list-style: none;
+      padding: 0;
+      margin-top: 12px;
+    }
+
+    #activeGamesList li {
+      background: #f3f4f6;
+      border-radius: 6px;
+      padding: 8px 12px;
+      margin: 6px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    button {
+      margin-left: 10px;
+    }
+  </style>
 </head>
 <body>
 
-<h1>Gimkit Communit Wwebsite</h1>
+<h1>Gimkit Community Website</h1>
 <p>hi.</p>
 
 <div>
   <label for="ActiveGames">Active Games:</label>
+  <form id="gameForm" style="margin-top: 8px;">
+    <input id="gameCodeInput" type="text" placeholder="Enter game code" aria-label="Game code" />
+    <button type="submit">Submit</button>
+  </form>
+  <ul id="activeGamesList"></ul>
 </div>
 
-<div>
+<div style="margin-top: 20px;">
   <label for="activeMeetings">Active Meetings:</label>
 </div>
+
+<script>
+  const activeGamesList = document.getElementById('activeGamesList');
+  const gameForm = document.getElementById('gameForm');
+  const gameCodeInput = document.getElementById('gameCodeInput');
+
+  // This keeps the list live for everyone on the same page while the page is open.
+  // For true cross-user live updates, you'll need a backend or Firebase database.
+  const currentGames = [];
+
+  function renderGames() {
+    activeGamesList.innerHTML = '';
+    currentGames.forEach((code, index) => {
+      const li = document.createElement('li');
+      li.textContent = code;
+
+      const removeBtn = document.createElement('button');
+      removeBtn.textContent = 'Remove';
+      removeBtn.type = 'button';
+      removeBtn.addEventListener('click', () => {
+        currentGames.splice(index, 1);
+        renderGames();
+      });
+
+      li.appendChild(removeBtn);
+      activeGamesList.appendChild(li);
+    });
+  }
+
+  gameForm.addEventListener('submit', function (event) {
+    event.preventDefault();
+    const code = gameCodeInput.value.trim();
+    if (!code) return;
+
+    const normalized = code.toUpperCase();
+    if (!currentGames.includes(normalized)) {
+      currentGames.push(normalized);
+      renderGames();
+    }
+
+    gameCodeInput.value = '';
+    gameCodeInput.focus();
+  });
+</script>
 
 </body>
 </html>
