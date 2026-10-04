@@ -41,14 +41,17 @@
 </div>
 
 <div style="margin-top:20px;">
-  <label>Schedule a Meeting:</label>
-  <form id="scheduleForm" style="margin-top:8px; display:flex; gap:8px; align-items:center;">
-    <input id="scheduleTitle" type="text" placeholder="Meeting title" aria-label="Scheduled meeting title" required />
-    <input id="scheduleTime" type="datetime-local" aria-label="Scheduled time" required />
-    <button type="submit">Schedule</button>
-  </form>
+  <label for="scheduledMeets" style="display:block; margin-bottom:8px;">Scheduled Meetings</label>
 
-  <label for="scheduledMeets">Scheduled Meetings</label>
+  <div style="margin-top:8px;">
+    <label for="scheduleTitle" style="display:block; margin-bottom:4px;">Schedule a Meeting:</label>
+    <form id="scheduleForm" style="display:flex; gap:8px; align-items:center;">
+      <input id="scheduleTitle" type="text" placeholder="Meeting title" aria-label="Scheduled meeting title" required />
+      <input id="scheduleTime" type="datetime-local" aria-label="Scheduled time" required />
+      <button type="submit">Schedule</button>
+    </form>
+  </div>
+
   <ul id="scheduledMeetingsList" aria-live="polite"></ul>
 </div>
 
