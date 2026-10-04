@@ -5,91 +5,141 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Gimkit Community Web</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 20px;
-    }
-
-    #activeGamesList {
-      list-style: none;
-      padding: 0;
-      margin-top: 12px;
-    }
-
-    #activeGamesList li {
-      background: #f3f4f6;
-      border-radius: 6px;
-      padding: 8px 12px;
-      margin: 6px 0;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    button {
-      margin-left: 10px;
-    }
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    #activeGamesList { list-style: none; padding: 0; margin-top: 12px; }
+    #activeGamesList li { background: #f3f4f6; border-radius: 6px; padding: 8px 12px; margin: 6px 0; display:flex; justify-content:space-between; align-items:center; }
+    button { margin-left: 8px; }
+    .small { font-size: 0.9rem; color: #555; }
   </style>
+
+  <!-- Firebase (compat for simpler example) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 <body>
 
 <h1>Gimkit Community Website</h1>
-<p>hi.</p>
+<p class="small">Add and see active game codes in real-time (all visitors see updates instantly).</p>
 
 <div>
   <label for="ActiveGames">Active Games:</label>
-  <form id="gameForm" style="margin-top: 8px;">
-    <input id="gameCodeInput" type="text" placeholder="Enter game code" aria-label="Game code" />
+  <form id="gameForm" style="margin-top:8px;">
+    <input id="gameCodeInput" type="text" placeholder="Enter game code" aria-label="Game code" required />
     <button type="submit">Submit</button>
   </form>
-  <ul id="activeGamesList"></ul>
+  <ul id="activeGamesList" aria-live="polite"></ul>
 </div>
 
-<div style="margin-top: 20px;">
+<div style="margin-top:20px;">
   <label for="activeMeetings">Active Meetings:</label>
+  <div id="activeMeetings">(not implemented)</div>
 </div>
 
 <script>
-  const activeGamesList = document.getElementById('activeGamesList');
+  // ---------- REPLACE THIS WITH YOUR FIREBASE CONFIG ----------
+  const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_AUTH_DOMAIN",
+    databaseURL: "YOUR_DATABASE_URL",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_STORAGE_BUCKET",
+    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+    appId: "YOUR_APP_ID"
+  };
+  // -----------------------------------------------------------
+
+  // Initialize Firebase
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.database();
+  const activeGamesRef = db.ref('activeGames');
+
+  // Sign in anonymously so we can use auth-protected rules if you choose them
+  auth.signInAnonymously().catch(err => {
+    console.error('Auth error:', err);
+  });
+
   const gameForm = document.getElementById('gameForm');
   const gameCodeInput = document.getElementById('gameCodeInput');
+  const activeGamesList = document.getElementById('activeGamesList');
 
-  // This keeps the list live for everyone on the same page while the page is open.
-  // For true cross-user live updates, you'll need a backend or Firebase database.
-  const currentGames = [];
+  // Local mapping of DB keys -> list items
+  const listItems = {};
 
-  function renderGames() {
+  // Submit a new game code
+  gameForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const raw = gameCodeInput.value.trim();
+    if (!raw) return;
+    const code = raw.toUpperCase().replace(/\s+/g, '');
+    // Avoid duplicates by checking child where code == code
+    activeGamesRef.orderByChild('code').equalTo(code).once('value', snap => {
+      if (snap.exists()) {
+        gameCodeInput.value = '';
+        gameCodeInput.focus();
+        return;
+      }
+      activeGamesRef.push({ code, createdAt: Date.now() });
+      gameCodeInput.value = '';
+      gameCodeInput.focus();
+    });
+  });
+
+  // Add item when child is added
+  activeGamesRef.on('child_added', snapshot => {
+    const key = snapshot.key;
+    const val = snapshot.val();
+    if (!val || !val.code) return;
+    const li = document.createElement('li');
+    const text = document.createElement('span');
+    text.textContent = val.code;
+    const btns = document.createElement('span');
+
+    const removeBtn = document.createElement('button');
+    removeBtn.textContent = 'Remove';
+    removeBtn.type = 'button';
+    removeBtn.addEventListener('click', () => activeGamesRef.child(key).remove());
+
+    btns.appendChild(removeBtn);
+    li.appendChild(text);
+    li.appendChild(btns);
+
+    listItems[key] = li;
+    activeGamesList.appendChild(li);
+  });
+
+  // Remove from UI when child removed
+  activeGamesRef.on('child_removed', snapshot => {
+    const key = snapshot.key;
+    const li = listItems[key];
+    if (li && li.parentNode) li.parentNode.removeChild(li);
+    delete listItems[key];
+  });
+
+  // Keep list ordered by createdAt (optional)
+  activeGamesRef.on('value', snapshot => {
+    const items = [];
+    snapshot.forEach(child => {
+      const v = child.val();
+      if (v && v.code) items.push({ key: child.key, code: v.code, createdAt: v.createdAt || 0 });
+    });
+    items.sort((a, b) => a.createdAt - b.createdAt);
     activeGamesList.innerHTML = '';
-    currentGames.forEach((code, index) => {
+    items.forEach(item => {
       const li = document.createElement('li');
-      li.textContent = code;
-
+      li.innerHTML = '';
+      const text = document.createElement('span');
+      text.textContent = item.code;
       const removeBtn = document.createElement('button');
       removeBtn.textContent = 'Remove';
       removeBtn.type = 'button';
-      removeBtn.addEventListener('click', () => {
-        currentGames.splice(index, 1);
-        renderGames();
-      });
-
+      removeBtn.addEventListener('click', () => activeGamesRef.child(item.key).remove());
+      li.appendChild(text);
       li.appendChild(removeBtn);
       activeGamesList.appendChild(li);
+      listItems[item.key] = li;
     });
-  }
-
-  gameForm.addEventListener('submit', function (event) {
-    event.preventDefault();
-    const code = gameCodeInput.value.trim();
-    if (!code) return;
-
-    const normalized = code.toUpperCase();
-    if (!currentGames.includes(normalized)) {
-      currentGames.push(normalized);
-      renderGames();
-    }
-
-    gameCodeInput.value = '';
-    gameCodeInput.focus();
   });
 </script>
 
