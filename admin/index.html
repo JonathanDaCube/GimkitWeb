@@ -24,8 +24,8 @@
 
       <!-- Email / password sign-in form -->
       <form id="authForm" onsubmit="return false;" style="margin:0;">
-        <input id="emailInput" type="email" placeholder="Email" required />
-        <input id="passwordInput" type="password" placeholder="Password" required />
+        <input id="emailInput" type="email" placeholder="Email" required autocomplete="username" />
+        <input id="passwordInput" type="password" placeholder="Password" required autocomplete="current-password" />
         <button id="signInBtn" type="button">Sign in</button>
         <button id="registerBtn" type="button">Register</button>
       </form>
