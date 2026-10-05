@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Sign up — Gimkit Community</title>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+</head>
+<body>
+  <a href="/GimkitWeb/">← Back to site</a>
+  <h1>Create account</h1>
+
+  <input id="username" type="text" placeholder="Username" />
+  <input id="email" type="email" placeholder="Email" />
+  <input id="password" type="password" placeholder="Password" />
+  <button id="signUpBtn">Create account</button>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDq6eOzOWLd88XG-wFo0LN1O3l2Yyvdfls",
+      authDomain: "gimkit-web.firebaseapp.com",
+      databaseURL: "https://gimkit-web-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "gimkit-web",
+      storageBucket: "gimkit-web.firebasedestorage.app",
+      messagingSenderId: "192282058649",
+      appId: "1:192282058649:web:cdcdfdb49c429fc0e33d08",
+      measurementId: "G-TLCCKP056J"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.database();
+
+    document.getElementById("signUpBtn").addEventListener("click", () => {
+      const username = document.getElementById("username").value.trim();
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+
+      auth.createUserWithEmailAndPassword(email, password)
+        .then((userCredential) => {
+          const user = userCredential.user;
+          user.updateProfile({ displayName: username });
+          db.ref("users/" + user.uid).set({
+            username: username,
+            email: email,
+            createdAt: Date.now()
+          });
+          window.location.href = "/GimkitWeb/";
+        })
+        .catch((err) => {
+          if (err.code === "auth/email-already-in-use") {
+            auth.signInWithEmailAndPassword(email, password)
+              .then(() => window.location.href = "/GimkitWeb/")
+              .catch(signErr => alert(signErr.message));
+          } else {
+            alert(err.message);
+          }
+        });
+    });
+  </script>
+</body>
+</html>
