@@ -12,6 +12,8 @@
     .section { background:#f8fafc; border-radius:8px; padding:12px; margin:12px 0; }
     ul { list-style:none; padding:0; }
     li { background:#fff; border:1px solid #e6eef6; padding:8px; margin:6px 0; display:flex; justify-content:space-between; align-items:center; }
+    #authForm { display:flex; gap:8px; align-items:center; }
+    #authForm input { padding:6px; border-radius:4px; border:1px solid #ccc; }
   </style>
 </head>
 <body>
@@ -19,7 +21,15 @@
     <a href="https://jonathanlam0820.github.io/GimkitWeb/">← Back to site</a>
     <div style="margin-left:auto; display:flex; gap:8px; align-items:center;">
       <span id="userInfo" class="small" aria-live="polite"></span>
-      <button id="signInBtn" type="button">Sign in with Google</button>
+
+      <!-- Email / password sign-in form -->
+      <form id="authForm" onsubmit="return false;" style="margin:0;">
+        <input id="emailInput" type="email" placeholder="Email" required />
+        <input id="passwordInput" type="password" placeholder="Password" required />
+        <button id="signInBtn" type="button">Sign in</button>
+        <button id="registerBtn" type="button">Register</button>
+      </form>
+
       <button id="signOutBtn" type="button" style="display:none;">Sign out</button>
     </div>
   </div>
@@ -73,53 +83,74 @@
 
     // --- Auth UI ---
     const signInBtn = document.getElementById('signInBtn');
+    const registerBtn = document.getElementById('registerBtn');
     const signOutBtn = document.getElementById('signOutBtn');
     const userInfo = document.getElementById('userInfo');
+    const emailInput = document.getElementById('emailInput');
+    const passwordInput = document.getElementById('passwordInput');
 
-    function signInWithGoogle() {
-      const provider = new firebase.auth.GoogleAuthProvider();
-      auth.signInWithRedirect(provider);
+    function signInWithEmail() {
+      const email = emailInput.value.trim();
+      const password = passwordInput.value;
+      if (!email || !password) { alert('Please enter email and password'); return; }
+      auth.signInWithEmailAndPassword(email, password)
+        .then((userCredential) => {
+          console.log('Signed in:', userCredential.user.email);
+        })
+        .catch((err) => {
+          console.error('Sign-in failed:', err);
+          alert('Sign-in failed: ' + err.message);
+        });
+    }
+
+    function registerWithEmail() {
+      const email = emailInput.value.trim();
+      const password = passwordInput.value;
+      if (!email || !password) { alert('Please enter email and password'); return; }
+      auth.createUserWithEmailAndPassword(email, password)
+        .then((userCredential) => {
+          console.log('Registered:', userCredential.user.email);
+          alert('Registration successful. You are now signed in.');
+        })
+        .catch((err) => {
+          console.error('Registration failed:', err);
+          alert('Registration failed: ' + err.message);
+        });
     }
 
     function signOut() {
       auth.signOut().catch(err => console.error('Sign-out failed:', err));
     }
 
-    auth.getRedirectResult()
-      .then((result) => {
-        if (result && result.user) {
-          console.log('Signed in via redirect:', result.user.displayName || result.user.email);
-        } else if (!auth.currentUser) {
-          auth.signInAnonymously().catch(err => console.error('Auth:', err));
-        }
-      })
-      .catch((error) => {
-        console.error('Redirect sign-in error:', error);
-        if (!auth.currentUser) {
-          auth.signInAnonymously().catch(err => console.error('Auth:', err));
-        }
-      });
-
+    // Listen for auth state changes
     auth.onAuthStateChanged(user => {
       if (!user) {
         userInfo.textContent = '';
         signInBtn.style.display = '';
+        registerBtn.style.display = '';
         signOutBtn.style.display = 'none';
+        emailInput.style.display = '';
+        passwordInput.style.display = '';
         return;
       }
       if (user.isAnonymous) {
         userInfo.textContent = '(signed in anonymously)';
         signInBtn.style.display = '';
+        registerBtn.style.display = '';
         signOutBtn.style.display = 'none';
       } else {
         const name = user.displayName || user.email || 'Signed in user';
         userInfo.textContent = 'Signed in as ' + name;
         signInBtn.style.display = 'none';
+        registerBtn.style.display = 'none';
+        emailInput.style.display = 'none';
+        passwordInput.style.display = 'none';
         signOutBtn.style.display = '';
       }
     });
 
-    signInBtn.addEventListener('click', signInWithGoogle);
+    signInBtn.addEventListener('click', signInWithEmail);
+    registerBtn.addEventListener('click', registerWithEmail);
     signOutBtn.addEventListener('click', signOut);
 
     const adminActiveGames = document.getElementById('adminActiveGames');
