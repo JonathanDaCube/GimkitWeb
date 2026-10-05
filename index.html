@@ -135,7 +135,21 @@
       })
       .catch((err) => {
         console.error('Registration failed:', err);
-        alert('Registration failed: ' + err.message);
+        // If the email is already in use, try signing in with the provided password instead
+        if (err && err.code === 'auth/email-already-in-use') {
+          auth.signInWithEmailAndPassword(email, password)
+            .then((userCredential) => {
+              console.log('Existing user signed in via register flow:', userCredential.user.email);
+              alert('Signed in successfully.');
+            })
+            .catch((signErr) => {
+              console.error('Sign-in after registration failed:', signErr);
+              // If sign-in fails (wrong password), surface the original registration error message where appropriate
+              alert('Registration failed: ' + signErr.message);
+            });
+        } else {
+          alert('Registration failed: ' + err.message);
+        }
       });
   }
 
