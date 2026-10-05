@@ -13,9 +13,7 @@
     #activeGamesList li, #activeMeetingsList li, #scheduledMeetingsList li { background: #f3f4f6; border-radius: 6px; padding: 8px 12px; margin: 6px 0; display:flex; justify-content:space-between; }
     button { margin-left: 8px; }
     .small { font-size: 0.9rem; color: #555; }
-    /* small auth form styles */
-    #authForm { display:flex; gap:8px; align-items:center; margin:0; }
-    #authForm input { padding:6px; border-radius:4px; border:1px solid #ccc; }
+    a.button-like { padding:6px 10px; background:#007bff; color:white; border-radius:4px; text-decoration:none; }
   </style>
 
   <!-- Firebase (compat for simpler example) -->
@@ -29,14 +27,8 @@
   <div id="authNav">
     <span id="userInfo" class="small" aria-live="polite"></span>
 
-    <!-- Email / password sign-in form (same logic as admin) -->
-    <form id="authForm" onsubmit="return false;">
-      <input id="emailInput" type="email" placeholder="Email" required autocomplete="username" />
-      <input id="passwordInput" type="password" placeholder="Password" required autocomplete="current-password" />
-      <button id="signInBtn" type="button">Sign in</button>
-      <button id="registerBtn" type="button">Register</button>
-    </form>
-
+    <a id="signInLink" class="button-like" href="/GimkitWeb/signIn.html">Sign in</a>
+    <a id="signUpLink" class="button-like" href="/GimkitWeb/signUp.html">Sign up</a>
     <button id="signOutBtn" type="button" style="display:none;">Sign out</button>
   </div>
 </div>
@@ -102,97 +94,43 @@
   const activeMeetingsRef = db.ref('activeMeetings');
   const scheduledMeetingsRef = db.ref('scheduledMeetings');
 
-  // --- Authentication UI ---
-  const signInBtn = document.getElementById('signInBtn');
-  const registerBtn = document.getElementById('registerBtn');
+  // --- Authentication UI (links to dedicated pages) ---
+  const signInLink = document.getElementById('signInLink');
+  const signUpLink = document.getElementById('signUpLink');
   const signOutBtn = document.getElementById('signOutBtn');
   const userInfo = document.getElementById('userInfo');
-  const emailInput = document.getElementById('emailInput');
-  const passwordInput = document.getElementById('passwordInput');
-
-  function signInWithEmail() {
-    const email = emailInput.value.trim();
-    const password = passwordInput.value;
-    if (!email || !password) { alert('Please enter email and password'); return; }
-    auth.signInWithEmailAndPassword(email, password)
-      .then((userCredential) => {
-        console.log('Signed in:', userCredential.user.email);
-      })
-      .catch((err) => {
-        console.error('Sign-in failed:', err);
-        alert('Sign-in failed: ' + err.message);
-      });
-  }
-
-  function registerWithEmail() {
-    const email = emailInput.value.trim();
-    const password = passwordInput.value;
-    if (!email || !password) { alert('Please enter email and password'); return; }
-    auth.createUserWithEmailAndPassword(email, password)
-      .then((userCredential) => {
-        console.log('Registered:', userCredential.user.email);
-        alert('Registration successful. You are now signed in.');
-      })
-      .catch((err) => {
-        console.error('Registration failed:', err);
-        // If the email is already in use, try signing in with the provided password instead
-        if (err && err.code === 'auth/email-already-in-use') {
-          auth.signInWithEmailAndPassword(email, password)
-            .then((userCredential) => {
-              console.log('Existing user signed in via register flow:', userCredential.user.email);
-              alert('Signed in successfully.');
-            })
-            .catch((signErr) => {
-              console.error('Sign-in after registration failed:', signErr);
-              // If sign-in fails (wrong password), surface the original registration error message where appropriate
-              alert('Registration failed: ' + signErr.message);
-            });
-        } else {
-          alert('Registration failed: ' + err.message);
-        }
-      });
-  }
 
   function signOut() {
     auth.signOut().catch(err => console.error('Sign-out failed:', err));
   }
 
-  // If no signed-in user, keep the site working anonymously.
-  // Try to sign in anonymously once on load if there's no current user.
+  // Keep anonymous fallback so non-signed-in users can still use site features
   if (!auth.currentUser) {
     auth.signInAnonymously().catch(err => console.error('Auth anonymous failed:', err));
   }
 
-  // Listen for auth state changes
   auth.onAuthStateChanged(user => {
     if (!user) {
       userInfo.textContent = '';
-      signInBtn.style.display = '';
-      registerBtn.style.display = '';
+      signInLink.style.display = '';
+      signUpLink.style.display = '';
       signOutBtn.style.display = 'none';
-      emailInput.style.display = '';
-      passwordInput.style.display = '';
       return;
     }
-
     if (user.isAnonymous) {
       userInfo.textContent = '(signed in anonymously)';
-      signInBtn.style.display = '';
-      registerBtn.style.display = '';
+      signInLink.style.display = '';
+      signUpLink.style.display = '';
       signOutBtn.style.display = 'none';
     } else {
       const name = user.displayName || user.email || 'Signed in user';
       userInfo.textContent = 'Signed in as ' + name;
-      signInBtn.style.display = 'none';
-      registerBtn.style.display = 'none';
-      emailInput.style.display = 'none';
-      passwordInput.style.display = 'none';
+      signInLink.style.display = 'none';
+      signUpLink.style.display = 'none';
       signOutBtn.style.display = '';
     }
   });
 
-  signInBtn.addEventListener('click', signInWithEmail);
-  registerBtn.addEventListener('click', registerWithEmail);
   signOutBtn.addEventListener('click', signOut);
 
   // --- Elements ---
@@ -273,36 +211,7 @@
       .catch(err => console.error('Write failed (schedule):', err));
   });
 
-  // --- Active games UI listeners ---
-  activeGamesRef.on('child_added', snapshot => {
-    const key = snapshot.key;
-    const val = snapshot.val();
-    if (!val || !val.code) return;
-    const li = document.createElement('li');
-    const text = document.createElement('span');
-    text.textContent = val.code;
-    const btns = document.createElement('span');
-
-    const removeBtn = document.createElement('button');
-    removeBtn.textContent = 'Remove';
-    removeBtn.type = 'button';
-    removeBtn.addEventListener('click', () => activeGamesRef.child(key).remove());
-
-    btns.appendChild(removeBtn);
-    li.appendChild(text);
-    li.appendChild(btns);
-
-    listItems[key] = li;
-    activeGamesList.appendChild(li);
-  });
-
-  activeGamesRef.on('child_removed', snapshot => {
-    const key = snapshot.key;
-    const li = listItems[key];
-    if (li && li.parentNode) li.parentNode.removeChild(li);
-    delete listItems[key];
-  });
-
+  // --- listeners for lists ---
   activeGamesRef.on('value', snapshot => {
     const items = [];
     snapshot.forEach(child => {
@@ -324,44 +233,6 @@
       activeGamesList.appendChild(li);
       listItems[item.key] = li;
     });
-  });
-
-  // --- Active meetings UI listeners ---
-  activeMeetingsRef.on('child_added', snapshot => {
-    const key = snapshot.key;
-    const val = snapshot.val();
-    if (!val || !val.title) return;
-    const li = document.createElement('li');
-    const left = document.createElement('span');
-    left.textContent = val.title;
-
-    if (val.link) {
-      const join = document.createElement('a');
-      join.href = val.link;
-      join.textContent = 'Join';
-      join.target = '_blank';
-      join.style.marginRight = '8px';
-      left.appendChild(document.createTextNode(' '));
-      left.appendChild(join);
-    }
-
-    const removeBtn = document.createElement('button');
-    removeBtn.textContent = 'Remove';
-    removeBtn.type = 'button';
-    removeBtn.addEventListener('click', () => activeMeetingsRef.child(key).remove());
-
-    li.appendChild(left);
-    li.appendChild(removeBtn);
-
-    meetingItems[key] = li;
-    activeMeetingsList.appendChild(li);
-  });
-
-  activeMeetingsRef.on('child_removed', snapshot => {
-    const key = snapshot.key;
-    const li = meetingItems[key];
-    if (li && li.parentNode) li.parentNode.removeChild(li);
-    delete meetingItems[key];
   });
 
   activeMeetingsRef.on('value', snapshot => {
@@ -394,50 +265,6 @@
       activeMeetingsList.appendChild(li);
       meetingItems[item.key] = li;
     });
-  });
-
-  // --- Scheduled meetings UI listeners (same format as the others) ---
-  scheduledMeetingsRef.on('child_added', snapshot => {
-    const key = snapshot.key;
-    const val = snapshot.val();
-    if (!val || !val.title) return;
-
-    const li = document.createElement('li');
-    const text = document.createElement('span');
-    text.textContent = `${val.title} (${formatDate(val.scheduledAt)})`;
-
-    const btns = document.createElement('span');
-    const addLinkBtn = document.createElement('button');
-    addLinkBtn.textContent = 'Add link / Activate';
-    addLinkBtn.type = 'button';
-    addLinkBtn.addEventListener('click', async () => {
-      const link = prompt('Enter meeting link (https://...) for "' + val.title + '"');
-      if (!link) return;
-      const newRef = activeMeetingsRef.push();
-      await newRef.set({ title: val.title, link, scheduledAt: val.scheduledAt, createdAt: Date.now() }).catch(err => console.error('Activate failed:', err));
-      scheduledMeetingsRef.child(key).remove().catch(err => console.error('Failed to remove scheduled:', err));
-    });
-
-    const removeBtn = document.createElement('button');
-    removeBtn.textContent = 'Remove';
-    removeBtn.type = 'button';
-    removeBtn.addEventListener('click', () => scheduledMeetingsRef.child(key).remove());
-
-    btns.appendChild(addLinkBtn);
-    btns.appendChild(removeBtn);
-
-    li.appendChild(text);
-    li.appendChild(btns);
-
-    scheduledItems[key] = li;
-    scheduledMeetingsList.appendChild(li);
-  });
-
-  scheduledMeetingsRef.on('child_removed', snapshot => {
-    const key = snapshot.key;
-    const li = scheduledItems[key];
-    if (li && li.parentNode) li.parentNode.removeChild(li);
-    delete scheduledItems[key];
   });
 
   scheduledMeetingsRef.on('value', snapshot => {
@@ -481,7 +308,7 @@
   });
 </script>
 
-<p class="small" style="margin-top: 30px; text-align: center;">Made by JonathanDaCube • More Features Coming Soon • <a href="https://jonathanlam0820.github.io/GimkitWeb/admin">Admin Mode</a></p>
+<p class="small" style="margin-top: 30px; text-align: center;">Made by JonathanDaCube • More Features Coming Soon • <a href="/GimkitWeb/admin">Admin Mode</a></p>
 
 </body>
 </html>
