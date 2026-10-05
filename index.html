@@ -10,9 +10,12 @@
     #topNav { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
     #authNav { display:flex; gap:8px; align-items:center; }
     #activeGamesList, #activeMeetingsList, #scheduledMeetingsList { list-style: none; padding: 0; margin-top: 12px; }
-    #activeGamesList li, #activeMeetingsList li, #scheduledMeetingsList li { background: #f3f4f6; border-radius: 6px; padding: 8px 12px; margin: 6px 0; display:flex; justify-content:space-between; align-items:center; }
+    #activeGamesList li, #activeMeetingsList li, #scheduledMeetingsList li { background: #f3f4f6; border-radius: 6px; padding: 8px 12px; margin: 6px 0; display:flex; justify-content:space-between; }
     button { margin-left: 8px; }
     .small { font-size: 0.9rem; color: #555; }
+    /* small auth form styles */
+    #authForm { display:flex; gap:8px; align-items:center; margin:0; }
+    #authForm input { padding:6px; border-radius:4px; border:1px solid #ccc; }
   </style>
 
   <!-- Firebase (compat for simpler example) -->
@@ -25,7 +28,15 @@
 <div id="topNav">
   <div id="authNav">
     <span id="userInfo" class="small" aria-live="polite"></span>
-    <button id="signInBtn" type="button">Sign in with Google</button>
+
+    <!-- Email / password sign-in form (same logic as admin) -->
+    <form id="authForm" onsubmit="return false;">
+      <input id="emailInput" type="email" placeholder="Email" required autocomplete="username" />
+      <input id="passwordInput" type="password" placeholder="Password" required autocomplete="current-password" />
+      <button id="signInBtn" type="button">Sign in</button>
+      <button id="registerBtn" type="button">Register</button>
+    </form>
+
     <button id="signOutBtn" type="button" style="display:none;">Sign out</button>
   </div>
 </div>
@@ -76,7 +87,7 @@
     authDomain: "gimkit-web.firebaseapp.com",
     databaseURL: "https://gimkit-web-default-rtdb.asia-southeast1.firebasedatabase.app",
     projectId: "gimkit-web",
-    storageBucket: "gimkit-web.firebasestorage.app",
+    storageBucket: "gimkit-web.firebasedestorage.app",
     messagingSenderId: "192282058649",
     appId: "1:192282058649:web:cdcdfdb49c429fc0e33d08",
     measurementId: "G-TLCCKP056J"
@@ -93,58 +104,81 @@
 
   // --- Authentication UI ---
   const signInBtn = document.getElementById('signInBtn');
+  const registerBtn = document.getElementById('registerBtn');
   const signOutBtn = document.getElementById('signOutBtn');
   const userInfo = document.getElementById('userInfo');
+  const emailInput = document.getElementById('emailInput');
+  const passwordInput = document.getElementById('passwordInput');
 
-  function signInWithGoogle() {
-    const provider = new firebase.auth.GoogleAuthProvider();
-    auth.signInWithRedirect(provider);
+  function signInWithEmail() {
+    const email = emailInput.value.trim();
+    const password = passwordInput.value;
+    if (!email || !password) { alert('Please enter email and password'); return; }
+    auth.signInWithEmailAndPassword(email, password)
+      .then((userCredential) => {
+        console.log('Signed in:', userCredential.user.email);
+      })
+      .catch((err) => {
+        console.error('Sign-in failed:', err);
+        alert('Sign-in failed: ' + err.message);
+      });
+  }
+
+  function registerWithEmail() {
+    const email = emailInput.value.trim();
+    const password = passwordInput.value;
+    if (!email || !password) { alert('Please enter email and password'); return; }
+    auth.createUserWithEmailAndPassword(email, password)
+      .then((userCredential) => {
+        console.log('Registered:', userCredential.user.email);
+        alert('Registration successful. You are now signed in.');
+      })
+      .catch((err) => {
+        console.error('Registration failed:', err);
+        alert('Registration failed: ' + err.message);
+      });
   }
 
   function signOut() {
     auth.signOut().catch(err => console.error('Sign-out failed:', err));
   }
 
-  auth.getRedirectResult()
-    .then((result) => {
-      if (result && result.user) {
-        console.log('Signed in via redirect:', result.user.displayName || result.user.email);
-      } else if (!auth.currentUser) {
-        auth.signInAnonymously().catch(err => {
-          console.error('Auth error:', err);
-        });
-      }
-    })
-    .catch((error) => {
-      console.error('Redirect sign-in error:', error);
-      if (!auth.currentUser) {
-        auth.signInAnonymously().catch(err => {
-          console.error('Auth error:', err);
-        });
-      }
-    });
+  // If no signed-in user, keep the site working anonymously.
+  // Try to sign in anonymously once on load if there's no current user.
+  if (!auth.currentUser) {
+    auth.signInAnonymously().catch(err => console.error('Auth anonymous failed:', err));
+  }
 
+  // Listen for auth state changes
   auth.onAuthStateChanged(user => {
     if (!user) {
       userInfo.textContent = '';
       signInBtn.style.display = '';
+      registerBtn.style.display = '';
       signOutBtn.style.display = 'none';
+      emailInput.style.display = '';
+      passwordInput.style.display = '';
       return;
     }
 
     if (user.isAnonymous) {
       userInfo.textContent = '(signed in anonymously)';
       signInBtn.style.display = '';
+      registerBtn.style.display = '';
       signOutBtn.style.display = 'none';
     } else {
       const name = user.displayName || user.email || 'Signed in user';
       userInfo.textContent = 'Signed in as ' + name;
       signInBtn.style.display = 'none';
+      registerBtn.style.display = 'none';
+      emailInput.style.display = 'none';
+      passwordInput.style.display = 'none';
       signOutBtn.style.display = '';
     }
   });
 
-  signInBtn.addEventListener('click', signInWithGoogle);
+  signInBtn.addEventListener('click', signInWithEmail);
+  registerBtn.addEventListener('click', registerWithEmail);
   signOutBtn.addEventListener('click', signOut);
 
   // --- Elements ---
