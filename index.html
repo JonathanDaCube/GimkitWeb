@@ -154,7 +154,7 @@
   auth.onAuthStateChanged(user => {
     if (user && user.isAnonymous) {
       setWriteAccess(false, false);
-      adminLink.hidden = true;
+      if (adminLink) adminLink.hidden = true;
       auth.signOut().catch(err => console.error('Could not sign out old anonymous session:', err));
       return;
     }
@@ -167,7 +167,7 @@
       user.email.toLowerCase() === 'jonathanlam0820@gmail.com'
     );
     setWriteAccess(isSignedIn, isAdmin);
-    adminLink.hidden = !isAdmin;
+    if (adminLink) adminLink.hidden = !isAdmin;
     if (!isSignedIn) {
       userInfo.textContent = '';
       signInLink.style.display = '';
