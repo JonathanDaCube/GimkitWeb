@@ -10,6 +10,10 @@
     },
     "scheduledMeetings": {
       ".read": true
+    },
+    "news": {
+      ".read": true,
+      ".indexOn": ["createdAt"]
     }
   }
 }

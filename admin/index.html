@@ -59,6 +59,20 @@
     <ul id="adminScheduled"></ul>
   </div>
 
+  <div class="section">
+    <h3>News</h3>
+    <form id="newsForm">
+      <input id="newsTitle" type="text" placeholder="News title" maxlength="120" required />
+      <textarea id="newsSummary" placeholder="Homepage summary" maxlength="280" required></textarea>
+      <textarea id="newsContent" placeholder="Full news article" rows="8" required></textarea>
+      <button id="saveNewsBtn" type="submit" data-auth-required>Publish news</button>
+      <button id="cancelNewsEditBtn" type="button" data-auth-required hidden>Cancel edit</button>
+    </form>
+    <p id="newsAccessNotice" class="small">Sign in to publish, edit, or delete news.</p>
+    <p id="newsEditorStatus" class="small" role="status" aria-live="polite"></p>
+    <ul id="adminNews"></ul>
+  </div>
+
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -80,6 +94,7 @@
     const activeGamesRef = db.ref('activeGames');
     const activeMeetingsRef = db.ref('activeMeetings');
     const scheduledMeetingsRef = db.ref('scheduledMeetings');
+    const newsRef = db.ref('news');
 
     // --- Auth UI ---
     const signInBtn = document.getElementById('signInBtn');
@@ -88,13 +103,27 @@
     const userInfo = document.getElementById('userInfo');
     const emailInput = document.getElementById('emailInput');
     const passwordInput = document.getElementById('passwordInput');
+    const newsForm = document.getElementById('newsForm');
+    const newsTitleInput = document.getElementById('newsTitle');
+    const newsSummaryInput = document.getElementById('newsSummary');
+    const newsContentInput = document.getElementById('newsContent');
+    const saveNewsBtn = document.getElementById('saveNewsBtn');
+    const cancelNewsEditBtn = document.getElementById('cancelNewsEditBtn');
+    const newsAccessNotice = document.getElementById('newsAccessNotice');
+    const newsEditorStatus = document.getElementById('newsEditorStatus');
+    const adminNews = document.getElementById('adminNews');
     let canManageData = false;
+    let editingNewsKey = null;
 
     function setDataAccess(allowed) {
       canManageData = allowed;
+      newsAccessNotice.hidden = allowed;
       document.querySelectorAll('[data-auth-required]').forEach(button => {
         button.disabled = !allowed;
         button.hidden = !allowed;
+      });
+      newsForm.querySelectorAll('input, textarea').forEach(field => {
+        field.disabled = !allowed;
       });
     }
 
@@ -168,6 +197,9 @@
     document.getElementById('clearGames').dataset.authRequired = '';
     document.getElementById('clearMeetings').dataset.authRequired = '';
     document.getElementById('clearScheduled').dataset.authRequired = '';
+    newsForm.querySelectorAll('input, textarea').forEach(field => {
+      field.dataset.authRequired = '';
+    });
     setDataAccess(false);
 
     document.getElementById('clearGames').addEventListener('click', async () => {
@@ -220,6 +252,118 @@
     renderList(activeGamesRef, adminActiveGames);
     renderList(activeMeetingsRef, adminActiveMeetings);
     renderList(scheduledMeetingsRef, adminScheduled);
+
+    function resetNewsForm() {
+      editingNewsKey = null;
+      newsForm.reset();
+      saveNewsBtn.textContent = 'Publish news';
+      cancelNewsEditBtn.hidden = true;
+      newsEditorStatus.textContent = '';
+    }
+
+    cancelNewsEditBtn.addEventListener('click', resetNewsForm);
+
+    newsForm.addEventListener('submit', async event => {
+      event.preventDefault();
+      if (!canManageData) return;
+
+      const title = newsTitleInput.value.trim();
+      const summary = newsSummaryInput.value.trim();
+      const content = newsContentInput.value.trim();
+      if (!title || !summary || !content) {
+        newsEditorStatus.textContent = 'Enter a title, homepage summary, and article.';
+        return;
+      }
+
+      const now = Date.now();
+      const newsItem = { title, summary, content, updatedAt: now };
+      let successMessage;
+      try {
+        if (editingNewsKey) {
+          await newsRef.child(editingNewsKey).update(newsItem);
+          successMessage = 'News updated.';
+        } else {
+          const newRef = newsRef.push();
+          await newRef.set({ ...newsItem, createdAt: now });
+          successMessage = 'News published.';
+        }
+        resetNewsForm();
+        newsEditorStatus.textContent = successMessage;
+      } catch (error) {
+        console.error('Could not save news:', error);
+        newsEditorStatus.textContent = 'Could not save news. Check your sign-in and try again.';
+      }
+    });
+
+    function renderNews(snapshot) {
+      adminNews.replaceChildren();
+      const entries = [];
+      snapshot.forEach(child => {
+        const newsItem = child.val();
+        if (newsItem && newsItem.title) {
+          entries.push({ key: child.key, ...newsItem });
+        }
+      });
+      entries.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+      if (entries.length === 0) {
+        const emptyMessage = document.createElement('li');
+        emptyMessage.textContent = 'No news has been published yet.';
+        adminNews.appendChild(emptyMessage);
+        return;
+      }
+
+      entries.forEach(newsItem => {
+        const item = document.createElement('li');
+        const details = document.createElement('span');
+        details.textContent = `${newsItem.title} — ${newsItem.summary}`;
+
+        const actions = document.createElement('span');
+        const editButton = document.createElement('button');
+        editButton.type = 'button';
+        editButton.textContent = 'Edit';
+        editButton.dataset.authRequired = '';
+        editButton.hidden = !canManageData;
+        editButton.disabled = !canManageData;
+        editButton.addEventListener('click', () => {
+          if (!canManageData) return;
+          editingNewsKey = newsItem.key;
+          newsTitleInput.value = newsItem.title || '';
+          newsSummaryInput.value = newsItem.summary || '';
+          newsContentInput.value = newsItem.content || '';
+          saveNewsBtn.textContent = 'Save changes';
+          cancelNewsEditBtn.hidden = false;
+          newsEditorStatus.textContent = `Editing "${newsItem.title}".`;
+          newsTitleInput.focus();
+        });
+
+        const deleteButton = document.createElement('button');
+        deleteButton.type = 'button';
+        deleteButton.textContent = 'Delete';
+        deleteButton.dataset.authRequired = '';
+        deleteButton.hidden = !canManageData;
+        deleteButton.disabled = !canManageData;
+        deleteButton.addEventListener('click', async () => {
+          if (!canManageData || !confirm(`Delete "${newsItem.title}"?`)) return;
+          try {
+            await newsRef.child(newsItem.key).remove();
+            if (editingNewsKey === newsItem.key) resetNewsForm();
+          } catch (error) {
+            console.error('Could not delete news:', error);
+            newsEditorStatus.textContent = 'Could not delete news. Check your sign-in and try again.';
+          }
+        });
+
+        actions.append(editButton, deleteButton);
+        item.append(details, actions);
+        adminNews.appendChild(item);
+      });
+    }
+
+    newsRef.on('value', renderNews, error => {
+      console.error('Could not load news for editing:', error);
+      newsEditorStatus.textContent = 'Could not load news.';
+    });
   </script>
 
   <p class="small" style="margin-top: 30px;">This page is for site administrators. Actions here affect live site data.</p>
