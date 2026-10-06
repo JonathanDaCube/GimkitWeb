@@ -11,6 +11,7 @@
     #authNav { display:flex; gap:8px; align-items:center; }
     #activeGamesList, #activeMeetingsList, #scheduledMeetingsList { list-style: none; padding: 0; margin-top: 12px; }
     #activeGamesList li, #activeMeetingsList li, #scheduledMeetingsList li { background: #f3f4f6; border-radius: 6px; padding: 8px 12px; margin: 6px 0; display:flex; justify-content:space-between; }
+    #newsSummary { border:1px solid #ddd; border-radius:8px; padding:12px; margin-top:16px; }
     button { margin-left: 8px; }
     .small { font-size: 0.9rem; color: #555; }
     a.button-like { padding:6px 10px; background:#007bff; color:white; border-radius:4px; text-decoration:none; }
@@ -35,6 +36,12 @@
 
 <h1>Gimkit Community Website</h1>
 <p class="small">Add and see active game codes and meetings in real-time (all visitors see updates instantly).</p>
+<section id="newsSummary" aria-labelledby="newsSummaryHeading">
+  <h2 id="newsSummaryHeading">Latest news</h2>
+  <p id="latestNewsTitle" class="small" aria-live="polite">Loading news…</p>
+  <p id="latestNewsSummary"></p>
+  <a href="/GimkitWeb/news/">View all news</a>
+</section>
 <p id="writeAccessNotice" class="small" role="status" hidden>Sign in to add or remove games and meetings.</p>
 
 <div>
@@ -94,6 +101,7 @@
   const activeGamesRef = db.ref('activeGames');
   const activeMeetingsRef = db.ref('activeMeetings');
   const scheduledMeetingsRef = db.ref('scheduledMeetings');
+  const newsRef = db.ref('news');
 
   // --- Authentication UI (links to dedicated pages) ---
   const signInLink = document.getElementById('signInLink');
@@ -152,6 +160,8 @@
   const scheduleTitle = document.getElementById('scheduleTitle');
   const scheduleTime = document.getElementById('scheduleTime');
   const scheduledMeetingsList = document.getElementById('scheduledMeetingsList');
+  const latestNewsTitle = document.getElementById('latestNewsTitle');
+  const latestNewsSummary = document.getElementById('latestNewsSummary');
 
   setWriteAccess(false);
   signOutBtn.addEventListener('click', signOut);
@@ -165,6 +175,22 @@
     const d = new Date(ts);
     return d.toLocaleString();
   }
+
+  newsRef.orderByChild('createdAt').limitToLast(1).on('value', snapshot => {
+    let latestNews = null;
+    snapshot.forEach(child => { latestNews = child.val(); });
+    if (!latestNews) {
+      latestNewsTitle.textContent = 'No news has been posted yet.';
+      latestNewsSummary.textContent = '';
+      return;
+    }
+    latestNewsTitle.textContent = latestNews.title || 'Untitled news';
+    latestNewsSummary.textContent = latestNews.summary || '';
+  }, error => {
+    console.error('Could not load latest news:', error);
+    latestNewsTitle.textContent = 'News is temporarily unavailable.';
+    latestNewsSummary.textContent = '';
+  });
 
   // --- Game submit ---
   gameForm.addEventListener('submit', (e) => {

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>News — Gimkit Community</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 24px; max-width: 800px; margin: 0 auto; }
+    article { border-bottom: 1px solid #ddd; padding: 16px 0; }
+    article h2 { margin-bottom: 4px; }
+    .small { font-size: 0.9rem; color: #555; }
+    .news-content { white-space: pre-wrap; }
+    #newsList { padding: 0; }
+  </style>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+</head>
+<body>
+  <a href="/GimkitWeb/">← Back to site</a>
+  <h1>News</h1>
+  <p id="newsStatus" class="small" role="status" aria-live="polite">Loading news…</p>
+  <main id="newsList"></main>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDq6eOzOWLd88XG-wFo0LN1O3l2Yyvdfls",
+      authDomain: "gimkit-web.firebaseapp.com",
+      databaseURL: "https://gimkit-web-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "gimkit-web",
+      storageBucket: "gimkit-web.firebasedestorage.app",
+      messagingSenderId: "192282058649",
+      appId: "1:192282058649:web:cdcdfdb49c429fc0e33d08",
+      measurementId: "G-TLCCKP056J"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const newsList = document.getElementById('newsList');
+    const newsStatus = document.getElementById('newsStatus');
+
+    firebase.database().ref('news').orderByChild('createdAt').on('value', snapshot => {
+      newsList.replaceChildren();
+      const entries = [];
+      snapshot.forEach(child => {
+        const newsItem = child.val();
+        if (newsItem && newsItem.title) {
+          entries.push(newsItem);
+        }
+      });
+
+      entries.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      if (entries.length === 0) {
+        newsStatus.textContent = 'No news has been published yet.';
+        return;
+      }
+
+      newsStatus.textContent = '';
+      entries.forEach(newsItem => {
+        const article = document.createElement('article');
+        const title = document.createElement('h2');
+        title.textContent = newsItem.title;
+
+        const date = document.createElement('p');
+        date.className = 'small';
+        date.textContent = newsItem.createdAt
+          ? new Date(newsItem.createdAt).toLocaleString()
+          : '';
+
+        const summary = document.createElement('p');
+        summary.className = 'small';
+        summary.textContent = newsItem.summary || '';
+
+        const content = document.createElement('p');
+        content.className = 'news-content';
+        content.textContent = newsItem.content || '';
+
+        article.append(title, date, summary, content);
+        newsList.appendChild(article);
+      });
+    }, error => {
+      console.error('Could not load news:', error);
+      newsStatus.textContent = 'News is temporarily unavailable.';
+    });
+  </script>
+</body>
+</html>
