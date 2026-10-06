@@ -1,0 +1,15 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
+    "activeGames": {
+      ".read": true
+    },
+    "activeMeetings": {
+      ".read": true
+    },
+    "scheduledMeetings": {
+      ".read": true
+    }
+  }
+}

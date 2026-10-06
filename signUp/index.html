@@ -12,10 +12,12 @@
   <a href="/GimkitWeb/">← Back to site</a>
   <h1>Create account</h1>
 
-  <input id="username" type="text" placeholder="Username" />
-  <input id="email" type="email" placeholder="Email" />
-  <input id="password" type="password" placeholder="Password" />
-  <button id="signUpBtn">Create account</button>
+  <form id="signUpForm" onsubmit="return false;">
+    <input id="username" type="text" placeholder="Username" autocomplete="nickname" />
+    <input id="email" type="email" placeholder="Email" autocomplete="username" />
+    <input id="password" type="password" placeholder="Password" autocomplete="new-password" />
+    <button id="signUpBtn" type="button">Create account</button>
+  </form>
 
   <script>
     const firebaseConfig = {
