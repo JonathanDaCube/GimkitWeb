@@ -88,6 +88,15 @@
     const userInfo = document.getElementById('userInfo');
     const emailInput = document.getElementById('emailInput');
     const passwordInput = document.getElementById('passwordInput');
+    let canManageData = false;
+
+    function setDataAccess(allowed) {
+      canManageData = allowed;
+      document.querySelectorAll('[data-auth-required]').forEach(button => {
+        button.disabled = !allowed;
+        button.hidden = !allowed;
+      });
+    }
 
     function signInWithEmail() {
       const email = emailInput.value.trim();
@@ -124,7 +133,13 @@
 
     // Listen for auth state changes
     auth.onAuthStateChanged(user => {
-      if (!user) {
+      if (user && user.isAnonymous) {
+        auth.signOut().catch(err => console.error('Could not sign out old anonymous session:', err));
+        return;
+      }
+      const isSignedIn = Boolean(user);
+      setDataAccess(isSignedIn);
+      if (!isSignedIn) {
         userInfo.textContent = '';
         signInBtn.style.display = '';
         registerBtn.style.display = '';
@@ -133,20 +148,13 @@
         passwordInput.style.display = '';
         return;
       }
-      if (user.isAnonymous) {
-        userInfo.textContent = '(signed in anonymously)';
-        signInBtn.style.display = '';
-        registerBtn.style.display = '';
-        signOutBtn.style.display = 'none';
-      } else {
-        const name = user.displayName || user.email || 'Signed in user';
-        userInfo.textContent = 'Signed in as ' + name;
-        signInBtn.style.display = 'none';
-        registerBtn.style.display = 'none';
-        emailInput.style.display = 'none';
-        passwordInput.style.display = 'none';
-        signOutBtn.style.display = '';
-      }
+      const name = user.displayName || user.email || 'Signed in user';
+      userInfo.textContent = 'Signed in as ' + name;
+      signInBtn.style.display = 'none';
+      registerBtn.style.display = 'none';
+      emailInput.style.display = 'none';
+      passwordInput.style.display = 'none';
+      signOutBtn.style.display = '';
     });
 
     signInBtn.addEventListener('click', signInWithEmail);
@@ -157,7 +165,13 @@
     const adminActiveMeetings = document.getElementById('adminActiveMeetings');
     const adminScheduled = document.getElementById('adminScheduled');
 
+    document.getElementById('clearGames').dataset.authRequired = '';
+    document.getElementById('clearMeetings').dataset.authRequired = '';
+    document.getElementById('clearScheduled').dataset.authRequired = '';
+    setDataAccess(false);
+
     document.getElementById('clearGames').addEventListener('click', async () => {
+      if (!canManageData) return;
       if (!confirm('Remove all active games?')) return;
       try {
         await activeGamesRef.remove();
@@ -166,11 +180,13 @@
     });
 
     document.getElementById('clearMeetings').addEventListener('click', async () => {
+      if (!canManageData) return;
       if (!confirm('Remove all active meetings?')) return;
       try { await activeMeetingsRef.remove(); alert('All active meetings removed.'); } catch (e) { console.error(e); alert('Failed to clear active meetings.'); }
     });
 
     document.getElementById('clearScheduled').addEventListener('click', async () => {
+      if (!canManageData) return;
       if (!confirm('Remove all scheduled meetings?')) return;
       try { await scheduledMeetingsRef.remove(); alert('All scheduled meetings removed.'); } catch (e) { console.error(e); alert('Failed to clear scheduled meetings.'); }
     });
@@ -186,7 +202,11 @@
           left.textContent = (val.code || val.title || '(no title)') + (val.link ? ' — ' + val.link : '');
           const removeBtn = document.createElement('button');
           removeBtn.textContent = 'Remove';
+          removeBtn.dataset.authRequired = '';
+          removeBtn.hidden = !canManageData;
+          removeBtn.disabled = !canManageData;
           removeBtn.addEventListener('click', () => {
+            if (!canManageData) return;
             if (!confirm('Remove this item?')) return;
             ref.child(key).remove().catch(err => console.error('remove failed:', err));
           });

@@ -33,6 +33,24 @@
       cursor: pointer;
       font-size: 1rem;
     }
+    .google-btn {
+      background: #4285F4;
+      width: 100%;
+    }
+    .auth-divider {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #666;
+      font-size: 0.9rem;
+    }
+    .auth-divider::before,
+    .auth-divider::after {
+      content: "";
+      height: 1px;
+      background: #ddd;
+      flex: 1;
+    }
     .error {
       color: #b33;
       min-height: 20px;
@@ -53,6 +71,8 @@
     <input id="email" type="email" placeholder="Email" required autocomplete="username" />
     <input id="password" type="password" placeholder="Password" required autocomplete="current-password" />
     <button id="signInBtn" type="button">Sign in</button>
+    <div class="auth-divider" aria-hidden="true">or</div>
+    <button id="googleSignInBtn" type="button" class="google-btn">Sign in with Google</button>
     <div id="errorMsg" class="error" role="alert" aria-live="polite"></div>
   </form>
 
@@ -76,6 +96,7 @@
     const emailEl = document.getElementById('email');
     const passwordEl = document.getElementById('password');
     const signInBtn = document.getElementById('signInBtn');
+    const googleSignInBtn = document.getElementById('googleSignInBtn');
     const errorMsg = document.getElementById('errorMsg');
 
     function showError(msg) {
@@ -98,6 +119,19 @@
         .catch(err => {
           console.error('Sign-in failed:', err);
           showError(err.message || 'Sign-in failed.');
+        });
+    });
+
+    googleSignInBtn.addEventListener('click', () => {
+      showError('');
+      const provider = new firebase.auth.GoogleAuthProvider();
+      auth.signInWithPopup(provider)
+        .then(() => {
+          window.location.href = '/GimkitWeb/';
+        })
+        .catch(err => {
+          console.error('Google sign-in failed:', err);
+          showError(err.message || 'Google sign-in failed.');
         });
     });
   </script>

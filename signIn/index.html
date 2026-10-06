@@ -15,9 +15,11 @@
     form { display:flex; flex-direction:column; gap:10px; margin-top:12px; }
     input { padding:10px 12px; border-radius:6px; border:1px solid #ccc; font-size:1rem; }
     button { padding:10px 14px; border-radius:6px; border:none; background:#007bff; color:white; cursor:pointer; font-size:1rem; }
+    .google-btn { background:#4285F4; width:100%; }
+    .auth-divider { display:flex; align-items:center; gap:10px; color:#666; font-size:0.9rem; }
+    .auth-divider::before, .auth-divider::after { content:""; height:1px; background:#ddd; flex:1; }
     .error { color:#b33; min-height:20px; }
     .small { font-size:0.9rem; color:#555; }
-    .google-btn { background:#4285F4; display:flex; align-items:center; gap:8px; }
     .link-area { border:1px dashed #ccc; padding:12px; border-radius:8px; margin-top:10px; }
   </style>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -30,11 +32,9 @@
   <form id="signInForm" onsubmit="return false;">
     <input id="email" type="email" placeholder="Email" required autocomplete="username" />
     <input id="password" type="password" placeholder="Password" required autocomplete="current-password" />
-    <div style="display:flex; gap:8px;">
-      <button id="signInBtn" type="button">Sign in</button>
-      <button id="googleSignInBtn" type="button" class="google-btn">Sign in with Google</button>
-    </div>
-
+    <button id="signInBtn" type="button">Sign in</button>
+    <div class="auth-divider" aria-hidden="true">or</div>
+    <button id="googleSignInBtn" type="button" class="google-btn">Sign in with Google</button>
     <div id="errorMsg" class="error" role="alert" aria-live="polite"></div>
   </form>
 

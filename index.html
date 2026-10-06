@@ -35,6 +35,7 @@
 
 <h1>Gimkit Community Website</h1>
 <p class="small">Add and see active game codes and meetings in real-time (all visitors see updates instantly).</p>
+<p id="writeAccessNotice" class="small" role="status" hidden>Sign in to add or remove games and meetings.</p>
 
 <div>
   <h3>Active Games</h3>
@@ -99,39 +100,44 @@
   const signUpLink = document.getElementById('signUpLink');
   const signOutBtn = document.getElementById('signOutBtn');
   const userInfo = document.getElementById('userInfo');
+  const writeAccessNotice = document.getElementById('writeAccessNotice');
+  let canWrite = false;
+
+  function setWriteAccess(allowed) {
+    canWrite = allowed;
+    [gameForm, meetingForm, scheduleForm].forEach(form => {
+      Array.from(form.elements).forEach(element => { element.disabled = !allowed; });
+    });
+    document.querySelectorAll('[data-write-action]').forEach(button => {
+      button.hidden = !allowed;
+    });
+    writeAccessNotice.hidden = allowed;
+  }
 
   function signOut() {
     auth.signOut().catch(err => console.error('Sign-out failed:', err));
   }
 
-  // Keep anonymous fallback so non-signed-in users can still use site features
-  if (!auth.currentUser) {
-    auth.signInAnonymously().catch(err => console.error('Auth anonymous failed:', err));
-  }
-
   auth.onAuthStateChanged(user => {
-    if (!user) {
+    if (user && user.isAnonymous) {
+      auth.signOut().catch(err => console.error('Could not sign out old anonymous session:', err));
+      return;
+    }
+    const isSignedIn = Boolean(user);
+    setWriteAccess(isSignedIn);
+    if (!isSignedIn) {
       userInfo.textContent = '';
       signInLink.style.display = '';
       signUpLink.style.display = '';
       signOutBtn.style.display = 'none';
       return;
     }
-    if (user.isAnonymous) {
-      userInfo.textContent = '(signed in anonymously)';
-      signInLink.style.display = '';
-      signUpLink.style.display = '';
-      signOutBtn.style.display = 'none';
-    } else {
-      const name = user.displayName || user.email || 'Signed in user';
-      userInfo.textContent = 'Signed in as ' + name;
-      signInLink.style.display = 'none';
-      signUpLink.style.display = 'none';
-      signOutBtn.style.display = '';
-    }
+    const name = user.displayName || user.email || 'Signed in user';
+    userInfo.textContent = 'Signed in as ' + name;
+    signInLink.style.display = 'none';
+    signUpLink.style.display = 'none';
+    signOutBtn.style.display = '';
   });
-
-  signOutBtn.addEventListener('click', signOut);
 
   // --- Elements ---
   const gameForm = document.getElementById('gameForm');
@@ -147,6 +153,9 @@
   const scheduleTime = document.getElementById('scheduleTime');
   const scheduledMeetingsList = document.getElementById('scheduledMeetingsList');
 
+  setWriteAccess(false);
+  signOutBtn.addEventListener('click', signOut);
+
   // Local mapping of DB keys -> list items
   const listItems = {};
   const meetingItems = {};
@@ -160,6 +169,7 @@
   // --- Game submit ---
   gameForm.addEventListener('submit', (e) => {
     e.preventDefault();
+    if (!canWrite) return;
     const raw = gameCodeInput.value.trim();
     if (!raw) return;
     const code = raw.toUpperCase().replace(/\s+/g, '');
@@ -181,6 +191,7 @@
   // --- Active meeting submit ---
   meetingForm.addEventListener('submit', (e) => {
     e.preventDefault();
+    if (!canWrite) return;
     const raw = meetingInput.value.trim();
     if (!raw) return;
     const titleOrLink = raw;
@@ -198,6 +209,7 @@
   // --- Schedule a meeting ---
   scheduleForm.addEventListener('submit', (e) => {
     e.preventDefault();
+    if (!canWrite) return;
     const title = scheduleTitle.value.trim();
     const when = scheduleTime.value;
     if (!title || !when) return;
@@ -227,7 +239,12 @@
       const removeBtn = document.createElement('button');
       removeBtn.textContent = 'Remove';
       removeBtn.type = 'button';
-      removeBtn.addEventListener('click', () => activeGamesRef.child(item.key).remove());
+      removeBtn.dataset.writeAction = '';
+      removeBtn.hidden = !canWrite;
+      removeBtn.addEventListener('click', () => {
+        if (!canWrite) return;
+        activeGamesRef.child(item.key).remove().catch(err => console.error('Failed to remove game:', err));
+      });
       li.appendChild(text);
       li.appendChild(removeBtn);
       activeGamesList.appendChild(li);
@@ -259,7 +276,12 @@
       const removeBtn = document.createElement('button');
       removeBtn.textContent = 'Remove';
       removeBtn.type = 'button';
-      removeBtn.addEventListener('click', () => activeMeetingsRef.child(item.key).remove());
+      removeBtn.dataset.writeAction = '';
+      removeBtn.hidden = !canWrite;
+      removeBtn.addEventListener('click', () => {
+        if (!canWrite) return;
+        activeMeetingsRef.child(item.key).remove().catch(err => console.error('Failed to remove meeting:', err));
+      });
       li.appendChild(left);
       li.appendChild(removeBtn);
       activeMeetingsList.appendChild(li);
@@ -284,7 +306,10 @@
       const addLinkBtn = document.createElement('button');
       addLinkBtn.textContent = 'Add link / Activate';
       addLinkBtn.type = 'button';
+      addLinkBtn.dataset.writeAction = '';
+      addLinkBtn.hidden = !canWrite;
       addLinkBtn.addEventListener('click', async () => {
+        if (!canWrite) return;
         const link = prompt('Enter meeting link (https://...) for "' + item.title + '"');
         if (!link) return;
         const newRef = activeMeetingsRef.push();
@@ -295,7 +320,12 @@
       const removeBtn = document.createElement('button');
       removeBtn.textContent = 'Remove';
       removeBtn.type = 'button';
-      removeBtn.addEventListener('click', () => scheduledMeetingsRef.child(item.key).remove());
+      removeBtn.dataset.writeAction = '';
+      removeBtn.hidden = !canWrite;
+      removeBtn.addEventListener('click', () => {
+        if (!canWrite) return;
+        scheduledMeetingsRef.child(item.key).remove().catch(err => console.error('Failed to remove scheduled meeting:', err));
+      });
 
       btns.appendChild(addLinkBtn);
       btns.appendChild(removeBtn);
