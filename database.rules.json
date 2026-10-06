@@ -1,19 +1,36 @@
 {
   "rules": {
     ".read": false,
-    ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous'",
     "activeGames": {
-      ".read": true
+      ".read": true,
+      ".write": "auth != null && auth.token.email == 'jonathanlam0820@gmail.com' && auth.token.email_verified == true",
+      "$gameId": {
+        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && (!data.exists() || (auth.token.email == 'jonathanlam0820@gmail.com' && auth.token.email_verified == true))"
+      }
     },
     "activeMeetings": {
-      ".read": true
+      ".read": true,
+      ".write": "auth != null && auth.token.email == 'jonathanlam0820@gmail.com' && auth.token.email_verified == true",
+      "$meetingId": {
+        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && (!data.exists() || (auth.token.email == 'jonathanlam0820@gmail.com' && auth.token.email_verified == true))"
+      }
     },
     "scheduledMeetings": {
-      ".read": true
+      ".read": true,
+      ".write": "auth != null && auth.token.email == 'jonathanlam0820@gmail.com' && auth.token.email_verified == true",
+      "$meetingId": {
+        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && (!data.exists() || (auth.token.email == 'jonathanlam0820@gmail.com' && auth.token.email_verified == true))"
+      }
     },
     "news": {
       ".read": true,
+      ".write": "auth != null && auth.token.email == 'jonathanlam0820@gmail.com' && auth.token.email_verified == true",
       ".indexOn": ["createdAt"]
+    },
+    "users": {
+      "$uid": {
+        ".write": "auth != null && auth.uid == $uid && auth.token.firebase.sign_in_provider != 'anonymous'"
+      }
     }
   }
 }
