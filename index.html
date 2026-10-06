@@ -42,7 +42,7 @@
   <p id="latestNewsSummary"></p>
   <a href="/GimkitWeb/news/">View all news</a>
 </section>
-<p id="writeAccessNotice" class="small" role="status" hidden>Sign in to add or remove games and meetings.</p>
+<p id="writeAccessNotice" class="small" role="status" hidden>Sign in to add games and meetings. Only the site administrator can remove or activate entries.</p>
 
 <div>
   <h3>Active Games</h3>
@@ -108,44 +108,29 @@
   const signUpLink = document.getElementById('signUpLink');
   const signOutBtn = document.getElementById('signOutBtn');
   const userInfo = document.getElementById('userInfo');
+  const adminLink = document.getElementById('adminLink');
   const writeAccessNotice = document.getElementById('writeAccessNotice');
   let canWrite = false;
+  let canAdminister = false;
 
-  function setWriteAccess(allowed) {
+  function setWriteAccess(allowed, adminAllowed) {
     canWrite = allowed;
+    canAdminister = adminAllowed;
+    writeAccessNotice.textContent = allowed
+      ? 'Only the site administrator can remove or activate entries.'
+      : 'Sign in to add games and meetings. Only the site administrator can remove or activate entries.';
     [gameForm, meetingForm, scheduleForm].forEach(form => {
       Array.from(form.elements).forEach(element => { element.disabled = !allowed; });
     });
     document.querySelectorAll('[data-write-action]').forEach(button => {
-      button.hidden = !allowed;
+      button.hidden = !adminAllowed;
     });
-    writeAccessNotice.hidden = allowed;
+    writeAccessNotice.hidden = allowed && adminAllowed;
   }
 
   function signOut() {
     auth.signOut().catch(err => console.error('Sign-out failed:', err));
   }
-
-  auth.onAuthStateChanged(user => {
-    if (user && user.isAnonymous) {
-      auth.signOut().catch(err => console.error('Could not sign out old anonymous session:', err));
-      return;
-    }
-    const isSignedIn = Boolean(user);
-    setWriteAccess(isSignedIn);
-    if (!isSignedIn) {
-      userInfo.textContent = '';
-      signInLink.style.display = '';
-      signUpLink.style.display = '';
-      signOutBtn.style.display = 'none';
-      return;
-    }
-    const name = user.displayName || user.email || 'Signed in user';
-    userInfo.textContent = 'Signed in as ' + name;
-    signInLink.style.display = 'none';
-    signUpLink.style.display = 'none';
-    signOutBtn.style.display = '';
-  });
 
   // --- Elements ---
   const gameForm = document.getElementById('gameForm');
@@ -163,8 +148,39 @@
   const latestNewsTitle = document.getElementById('latestNewsTitle');
   const latestNewsSummary = document.getElementById('latestNewsSummary');
 
-  setWriteAccess(false);
+  setWriteAccess(false, false);
   signOutBtn.addEventListener('click', signOut);
+
+  auth.onAuthStateChanged(user => {
+    if (user && user.isAnonymous) {
+      setWriteAccess(false, false);
+      adminLink.hidden = true;
+      auth.signOut().catch(err => console.error('Could not sign out old anonymous session:', err));
+      return;
+    }
+    const isSignedIn = Boolean(user);
+    const isAdmin = Boolean(
+      user &&
+      !user.isAnonymous &&
+      user.emailVerified &&
+      user.email &&
+      user.email.toLowerCase() === 'jonathanlam0820@gmail.com'
+    );
+    setWriteAccess(isSignedIn, isAdmin);
+    adminLink.hidden = !isAdmin;
+    if (!isSignedIn) {
+      userInfo.textContent = '';
+      signInLink.style.display = '';
+      signUpLink.style.display = '';
+      signOutBtn.style.display = 'none';
+      return;
+    }
+    const name = user.displayName || user.email || 'Signed in user';
+    userInfo.textContent = 'Signed in as ' + name;
+    signInLink.style.display = 'none';
+    signUpLink.style.display = 'none';
+    signOutBtn.style.display = '';
+  });
 
   // Local mapping of DB keys -> list items
   const listItems = {};
@@ -266,9 +282,9 @@
       removeBtn.textContent = 'Remove';
       removeBtn.type = 'button';
       removeBtn.dataset.writeAction = '';
-      removeBtn.hidden = !canWrite;
+      removeBtn.hidden = !canAdminister;
       removeBtn.addEventListener('click', () => {
-        if (!canWrite) return;
+        if (!canAdminister) return;
         activeGamesRef.child(item.key).remove().catch(err => console.error('Failed to remove game:', err));
       });
       li.appendChild(text);
@@ -303,9 +319,9 @@
       removeBtn.textContent = 'Remove';
       removeBtn.type = 'button';
       removeBtn.dataset.writeAction = '';
-      removeBtn.hidden = !canWrite;
+      removeBtn.hidden = !canAdminister;
       removeBtn.addEventListener('click', () => {
-        if (!canWrite) return;
+        if (!canAdminister) return;
         activeMeetingsRef.child(item.key).remove().catch(err => console.error('Failed to remove meeting:', err));
       });
       li.appendChild(left);
@@ -333,9 +349,9 @@
       addLinkBtn.textContent = 'Add link / Activate';
       addLinkBtn.type = 'button';
       addLinkBtn.dataset.writeAction = '';
-      addLinkBtn.hidden = !canWrite;
+      addLinkBtn.hidden = !canAdminister;
       addLinkBtn.addEventListener('click', async () => {
-        if (!canWrite) return;
+        if (!canAdminister) return;
         const link = prompt('Enter meeting link (https://...) for "' + item.title + '"');
         if (!link) return;
         const newRef = activeMeetingsRef.push();
@@ -347,9 +363,9 @@
       removeBtn.textContent = 'Remove';
       removeBtn.type = 'button';
       removeBtn.dataset.writeAction = '';
-      removeBtn.hidden = !canWrite;
+      removeBtn.hidden = !canAdminister;
       removeBtn.addEventListener('click', () => {
-        if (!canWrite) return;
+        if (!canAdminister) return;
         scheduledMeetingsRef.child(item.key).remove().catch(err => console.error('Failed to remove scheduled meeting:', err));
       });
 
@@ -364,7 +380,7 @@
   });
 </script>
 
-<p class="small" style="margin-top: 30px; text-align: center;">Made by JonathanDaCube • More Features Coming Soon • <a href="/GimkitWeb/admin">Admin Mode</a></p>
+<p class="small" style="margin-top: 30px; text-align: center;">Made by JonathanDaCube • More Features Coming Soon • <a id="adminLink" href="/GimkitWeb/admin" hidden>Admin Mode</a></p>
 
 </body>
 </html>

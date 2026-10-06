@@ -22,56 +22,58 @@
     <div style="margin-left:auto; display:flex; gap:8px; align-items:center;">
       <span id="userInfo" class="small" aria-live="polite"></span>
 
-      <!-- Email / password sign-in form -->
       <form id="authForm" onsubmit="return false;" style="margin:0;">
         <input id="emailInput" type="email" placeholder="Email" required autocomplete="username" />
         <input id="passwordInput" type="password" placeholder="Password" required autocomplete="current-password" />
         <button id="signInBtn" type="button">Sign in</button>
+        <button id="googleSignInBtn" type="button">Sign in with Google</button>
         <button id="registerBtn" type="button">Register</button>
       </form>
 
       <button id="signOutBtn" type="button" style="display:none;">Sign out</button>
     </div>
   </div>
+  <p id="adminAccessMessage" class="small" role="status" aria-live="polite">Sign in with the authorized Google account to access Admin Mode.</p>
 
-  <h1>Gimkit Community — Admin Controls</h1>
-  <p class="small">Administrative controls for managing active games & meetings. Actions are immediate — use with care.</p>
+  <main id="adminContent" hidden>
+    <h1>Gimkit Community — Admin Controls</h1>
+    <p class="small">Administrative controls for managing active games & meetings. Actions are immediate — use with care.</p>
 
-  <div class="section">
-    <h3>Quick Actions</h3>
-    <button id="clearGames">Clear all Active Games</button>
-    <button id="clearMeetings">Clear all Active Meetings</button>
-    <button id="clearScheduled">Clear all Scheduled Meetings</button>
-  </div>
+    <div class="section">
+      <h3>Quick Actions</h3>
+      <button id="clearGames">Clear all Active Games</button>
+      <button id="clearMeetings">Clear all Active Meetings</button>
+      <button id="clearScheduled">Clear all Scheduled Meetings</button>
+    </div>
 
-  <div class="section">
-    <h3>Active Games</h3>
-    <ul id="adminActiveGames"></ul>
-  </div>
+    <div class="section">
+      <h3>Active Games</h3>
+      <ul id="adminActiveGames"></ul>
+    </div>
 
-  <div class="section">
-    <h3>Active Meetings</h3>
-    <ul id="adminActiveMeetings"></ul>
-  </div>
+    <div class="section">
+      <h3>Active Meetings</h3>
+      <ul id="adminActiveMeetings"></ul>
+    </div>
 
-  <div class="section">
-    <h3>Scheduled Meetings</h3>
-    <ul id="adminScheduled"></ul>
-  </div>
+    <div class="section">
+      <h3>Scheduled Meetings</h3>
+      <ul id="adminScheduled"></ul>
+    </div>
 
-  <div class="section">
-    <h3>News</h3>
-    <form id="newsForm">
-      <input id="newsTitle" type="text" placeholder="News title" maxlength="120" required />
-      <textarea id="newsSummary" placeholder="Homepage summary" maxlength="280" required></textarea>
-      <textarea id="newsContent" placeholder="Full news article" rows="8" required></textarea>
-      <button id="saveNewsBtn" type="submit" data-auth-required>Publish news</button>
-      <button id="cancelNewsEditBtn" type="button" data-auth-required hidden>Cancel edit</button>
-    </form>
-    <p id="newsAccessNotice" class="small">Sign in to publish, edit, or delete news.</p>
-    <p id="newsEditorStatus" class="small" role="status" aria-live="polite"></p>
-    <ul id="adminNews"></ul>
-  </div>
+    <div class="section">
+      <h3>News</h3>
+      <form id="newsForm">
+        <input id="newsTitle" type="text" placeholder="News title" maxlength="120" required />
+        <textarea id="newsSummary" placeholder="Homepage summary" maxlength="280" required></textarea>
+        <textarea id="newsContent" placeholder="Full news article" rows="8" required></textarea>
+        <button id="saveNewsBtn" type="submit" data-auth-required>Publish news</button>
+        <button id="cancelNewsEditBtn" type="button" data-auth-required hidden>Cancel edit</button>
+      </form>
+      <p id="newsEditorStatus" class="small" role="status" aria-live="polite"></p>
+      <ul id="adminNews"></ul>
+    </div>
+  </main>
 
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -98,26 +100,29 @@
 
     // --- Auth UI ---
     const signInBtn = document.getElementById('signInBtn');
+    const googleSignInBtn = document.getElementById('googleSignInBtn');
     const registerBtn = document.getElementById('registerBtn');
     const signOutBtn = document.getElementById('signOutBtn');
     const userInfo = document.getElementById('userInfo');
     const emailInput = document.getElementById('emailInput');
     const passwordInput = document.getElementById('passwordInput');
+    const adminContent = document.getElementById('adminContent');
+    const adminAccessMessage = document.getElementById('adminAccessMessage');
     const newsForm = document.getElementById('newsForm');
     const newsTitleInput = document.getElementById('newsTitle');
     const newsSummaryInput = document.getElementById('newsSummary');
     const newsContentInput = document.getElementById('newsContent');
     const saveNewsBtn = document.getElementById('saveNewsBtn');
     const cancelNewsEditBtn = document.getElementById('cancelNewsEditBtn');
-    const newsAccessNotice = document.getElementById('newsAccessNotice');
     const newsEditorStatus = document.getElementById('newsEditorStatus');
     const adminNews = document.getElementById('adminNews');
     let canManageData = false;
     let editingNewsKey = null;
+    let adminDataInitialized = false;
 
     function setDataAccess(allowed) {
       canManageData = allowed;
-      newsAccessNotice.hidden = allowed;
+      adminContent.hidden = !allowed;
       document.querySelectorAll('[data-auth-required]').forEach(button => {
         button.disabled = !allowed;
         button.hidden = !allowed;
@@ -156,37 +161,20 @@
         });
     }
 
+    function signInWithGoogle() {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      auth.signInWithPopup(provider).catch(error => {
+        console.error('Google sign-in failed:', error);
+        alert('Google sign-in failed: ' + error.message);
+      });
+    }
+
     function signOut() {
       auth.signOut().catch(err => console.error('Sign-out failed:', err));
     }
 
-    // Listen for auth state changes
-    auth.onAuthStateChanged(user => {
-      if (user && user.isAnonymous) {
-        auth.signOut().catch(err => console.error('Could not sign out old anonymous session:', err));
-        return;
-      }
-      const isSignedIn = Boolean(user);
-      setDataAccess(isSignedIn);
-      if (!isSignedIn) {
-        userInfo.textContent = '';
-        signInBtn.style.display = '';
-        registerBtn.style.display = '';
-        signOutBtn.style.display = 'none';
-        emailInput.style.display = '';
-        passwordInput.style.display = '';
-        return;
-      }
-      const name = user.displayName || user.email || 'Signed in user';
-      userInfo.textContent = 'Signed in as ' + name;
-      signInBtn.style.display = 'none';
-      registerBtn.style.display = 'none';
-      emailInput.style.display = 'none';
-      passwordInput.style.display = 'none';
-      signOutBtn.style.display = '';
-    });
-
     signInBtn.addEventListener('click', signInWithEmail);
+    googleSignInBtn.addEventListener('click', signInWithGoogle);
     registerBtn.addEventListener('click', registerWithEmail);
     signOutBtn.addEventListener('click', signOut);
 
@@ -248,10 +236,6 @@
         });
       });
     }
-
-    renderList(activeGamesRef, adminActiveGames);
-    renderList(activeMeetingsRef, adminActiveMeetings);
-    renderList(scheduledMeetingsRef, adminScheduled);
 
     function resetNewsForm() {
       editingNewsKey = null;
@@ -360,12 +344,61 @@
       });
     }
 
-    newsRef.on('value', renderNews, error => {
-      console.error('Could not load news for editing:', error);
-      newsEditorStatus.textContent = 'Could not load news.';
+    function initializeAdminData() {
+      if (adminDataInitialized) return;
+      adminDataInitialized = true;
+      renderList(activeGamesRef, adminActiveGames);
+      renderList(activeMeetingsRef, adminActiveMeetings);
+      renderList(scheduledMeetingsRef, adminScheduled);
+      newsRef.on('value', renderNews, error => {
+        console.error('Could not load news for editing:', error);
+        newsEditorStatus.textContent = 'Could not load news.';
+      });
+    }
+
+    const ADMIN_EMAIL = 'jonathanlam0820@gmail.com';
+    auth.onAuthStateChanged(user => {
+      setDataAccess(false);
+      const isAdmin = Boolean(
+        user &&
+        !user.isAnonymous &&
+        user.emailVerified &&
+        user.email &&
+        user.email.toLowerCase() === ADMIN_EMAIL
+      );
+      setDataAccess(isAdmin);
+
+      if (!user) {
+        userInfo.textContent = '';
+        adminAccessMessage.textContent = 'Sign in with the authorized Google account to access Admin Mode.';
+        signInBtn.style.display = '';
+        googleSignInBtn.style.display = '';
+        registerBtn.style.display = '';
+        signOutBtn.style.display = 'none';
+        emailInput.style.display = '';
+        passwordInput.style.display = '';
+        return;
+      }
+
+      const name = user.displayName || user.email || 'Signed in user';
+      userInfo.textContent = 'Signed in as ' + name;
+      signInBtn.style.display = 'none';
+      googleSignInBtn.style.display = 'none';
+      registerBtn.style.display = 'none';
+      emailInput.style.display = 'none';
+      passwordInput.style.display = 'none';
+      signOutBtn.style.display = '';
+
+      if (!isAdmin) {
+        adminAccessMessage.textContent = 'Not authorized for admin access.';
+        return;
+      }
+
+      adminAccessMessage.textContent = '';
+      initializeAdminData();
     });
   </script>
 
-  <p class="small" style="margin-top: 30px;">This page is for site administrators. Actions here affect live site data.</p>
+  <p class="small" style="margin-top: 30px;">This page is for the authorized site administrator. Actions here affect live site data.</p>
 </body>
 </html>
