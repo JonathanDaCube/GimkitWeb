@@ -17,6 +17,8 @@
     button { padding:10px 14px; border-radius:6px; border:none; background:#007bff; color:white; cursor:pointer; font-size:1rem; }
     .error { color:#b33; min-height:20px; }
     .small { font-size:0.9rem; color:#555; }
+    .google-btn { background:#4285F4; display:flex; align-items:center; gap:8px; }
+    .link-area { border:1px dashed #ccc; padding:12px; border-radius:8px; margin-top:10px; }
   </style>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -28,11 +30,29 @@
   <form id="signInForm" onsubmit="return false;">
     <input id="email" type="email" placeholder="Email" required autocomplete="username" />
     <input id="password" type="password" placeholder="Password" required autocomplete="current-password" />
-    <button id="signInBtn" type="button">Sign in</button>
+    <div style="display:flex; gap:8px;">
+      <button id="signInBtn" type="button">Sign in</button>
+      <button id="googleSignInBtn" type="button" class="google-btn">Sign in with Google</button>
+    </div>
+
     <div id="errorMsg" class="error" role="alert" aria-live="polite"></div>
   </form>
 
   <p class="small">Don't have an account? <a href="/GimkitWeb/signUp/">Create one</a></p>
+
+  <!-- Extra UI shown when linking a new Google account to an email/password credential -->
+  <div id="googleExtra" class="link-area" style="display:none;">
+    <h2>Create account details</h2>
+    <p class="small">We created an account for <span id="googleEmail"></span>. To finish setup, choose a username and password you can use to sign in directly later.</p>
+    <input id="linkUsername" type="text" placeholder="Username" autocomplete="nickname" />
+    <input id="linkPassword" type="password" placeholder="Password" autocomplete="new-password" />
+    <input id="linkPasswordConfirm" type="password" placeholder="Confirm password" autocomplete="new-password" />
+    <div style="display:flex; gap:8px; margin-top:6px;">
+      <button id="linkBtn" type="button">Complete account</button>
+      <button id="linkCancel" type="button" style="background:#6c757d;">Cancel</button>
+    </div>
+    <div id="linkError" class="error" role="alert" aria-live="polite"></div>
+  </div>
 
   <script>
     const firebaseConfig = {
@@ -46,16 +66,36 @@
       measurementId: "G-TLCCKP056J"
     };
 
-    firebase.initializeApp(firebaseConfig);
+    // Initialize Firebase only once in case other pages also initialize
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    } else {
+      firebase.app();
+    }
     const auth = firebase.auth();
+
+    // Ensure persistence (keeps user signed in across reloads/tabs)
+    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e => console.warn('Could not set persistence:', e));
 
     const emailEl = document.getElementById('email');
     const passwordEl = document.getElementById('password');
     const signInBtn = document.getElementById('signInBtn');
+    const googleSignInBtn = document.getElementById('googleSignInBtn');
     const errorMsg = document.getElementById('errorMsg');
 
-    function showError(msg) { errorMsg.textContent = msg || ''; }
+    const googleExtra = document.getElementById('googleExtra');
+    const googleEmail = document.getElementById('googleEmail');
+    const linkUsername = document.getElementById('linkUsername');
+    const linkPassword = document.getElementById('linkPassword');
+    const linkPasswordConfirm = document.getElementById('linkPasswordConfirm');
+    const linkBtn = document.getElementById('linkBtn');
+    const linkCancel = document.getElementById('linkCancel');
+    const linkError = document.getElementById('linkError');
 
+    function showError(msg) { errorMsg.textContent = msg || ''; }
+    function showLinkError(msg) { linkError.textContent = msg || ''; }
+
+    // Basic email/password sign in
     signInBtn.addEventListener('click', () => {
       showError('');
       const email = emailEl.value.trim();
@@ -66,6 +106,82 @@
         .then(() => { window.location.href = '/GimkitWeb/'; })
         .catch(err => { console.error('Sign-in failed:', err); showError(err.message || 'Sign-in failed.'); });
     });
+
+    // Google sign-in flow
+    googleSignInBtn.addEventListener('click', () => {
+      showError('');
+      const provider = new firebase.auth.GoogleAuthProvider();
+      auth.signInWithPopup(provider)
+        .then(result => {
+          const isNew = result.additionalUserInfo && result.additionalUserInfo.isNewUser;
+          const user = result.user;
+          if (isNew) {
+            // Show UI to let user pick a username and password to link to this account
+            googleEmail.textContent = user.email || '';
+            linkUsername.value = user.displayName || '';
+            linkPassword.value = '';
+            linkPasswordConfirm.value = '';
+            showLinkError('');
+            googleExtra.style.display = 'block';
+            // Do not redirect yet — wait for user to complete linking
+          } else {
+            // Existing user, just redirect
+            window.location.href = '/GimkitWeb/';
+          }
+        })
+        .catch(err => { console.error('Google sign-in failed:', err); showError(err.message || 'Google sign-in failed.'); });
+    });
+
+    // Cancel linking — sign out the just-created user and hide UI
+    linkCancel.addEventListener('click', () => {
+      googleExtra.style.display = 'none';
+      showLinkError('');
+      // Sign out the current user that was created by Google sign-in so they can try again
+      if (auth.currentUser) {
+        auth.signOut().catch(e => console.warn('Sign-out after cancel failed', e));
+      }
+    });
+
+    // Complete linking: create an email/password credential and link to the Google account
+    linkBtn.addEventListener('click', () => {
+      showLinkError('');
+      const username = linkUsername.value.trim();
+      const password = linkPassword.value;
+      const passwordConfirm = linkPasswordConfirm.value;
+      const email = googleEmail.textContent;
+
+      if (!username) { showLinkError('Please enter a username.'); return; }
+      if (!password) { showLinkError('Please enter a password.'); return; }
+      if (password !== passwordConfirm) { showLinkError('Passwords do not match.'); return; }
+      if (!auth.currentUser) { showLinkError('No authenticated user. Please try signing in with Google again.'); return; }
+
+      // Create credential and link
+      const credential = firebase.auth.EmailAuthProvider.credential(email, password);
+      auth.currentUser.linkWithCredential(credential)
+        .then(() => {
+          // Set displayName (username) on the linked account
+          return auth.currentUser.updateProfile({ displayName: username });
+        })
+        .then(() => {
+          // Done — redirect to site
+          window.location.href = '/GimkitWeb/';
+        })
+        .catch(err => {
+          console.error('Linking credential failed:', err);
+          // Common case: email already in use if an account exists with same email but different sign-in method
+          if (err && err.code === 'auth/email-already-in-use') {
+            showLinkError('That email is already in use with another account. Try signing in with email/password instead.');
+          } else if (err && err.message) {
+            showLinkError(err.message);
+          } else {
+            showLinkError('Could not complete account setup.');
+          }
+        });
+    });
+
+    // Helpful debug logging on auth state changes
+    auth.onAuthStateChanged(user => console.log('onAuthStateChanged', user));
+    auth.onIdTokenChanged(user => console.log('onIdTokenChanged', user));
   </script>
 </body>
 </html>
