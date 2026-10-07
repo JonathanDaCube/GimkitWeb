@@ -4,6 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>News — Gimkit Community</title>
+  <link rel="stylesheet" href="/GimkitWeb/site-nav.css" />
+  <script src="/GimkitWeb/site-nav.js" defer></script>
   <style>
     body { font-family: Arial, sans-serif; padding: 24px; max-width: 800px; margin: 0 auto; }
     article { border-bottom: 1px solid #ddd; padding: 16px 0; }
@@ -13,10 +15,10 @@
     #newsList { padding: 0; }
   </style>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 <body>
-  <a href="/GimkitWeb/">← Back to site</a>
   <h1>News</h1>
   <p id="newsStatus" class="small" role="status" aria-live="polite">Loading news…</p>
   <main id="newsList"></main>
@@ -34,6 +36,7 @@
     };
 
     firebase.initializeApp(firebaseConfig);
+    firebase.auth();
     const newsList = document.getElementById('newsList');
     const newsStatus = document.getElementById('newsStatus');
 

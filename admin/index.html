@@ -4,6 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Gimkit Community Admin</title>
+  <link rel="stylesheet" href="/GimkitWeb/site-nav.css" />
+  <script src="/GimkitWeb/site-nav.js" defer></script>
   <style>
     body { font-family: Arial, sans-serif; padding: 20px; }
     #authNav { display:flex; gap:8px; align-items:center; margin-bottom:12px; }
@@ -18,7 +20,6 @@
 </head>
 <body>
   <div id="authNav">
-    <a href="https://jonathandacube.github.io/GimkitWeb/">← Back to site</a>
     <div style="margin-left:auto; display:flex; gap:8px; align-items:center;">
       <span id="userInfo" class="small" aria-live="polite"></span>
 
@@ -356,16 +357,32 @@
       });
     }
 
-    const ADMIN_EMAIL = 'jonathanlam0820@gmail.com';
-    auth.onAuthStateChanged(user => {
+    const OWNER_EMAIL = 'jonathanlam0820@gmail.com';
+    let authStateChangeId = 0;
+    auth.onAuthStateChanged(async user => {
+      const stateChangeId = ++authStateChangeId;
       setDataAccess(false);
-      const isAdmin = Boolean(
+      const isOwner = Boolean(
         user &&
         !user.isAnonymous &&
         user.emailVerified &&
         user.email &&
-        user.email.toLowerCase() === ADMIN_EMAIL
+        user.email.toLowerCase() === OWNER_EMAIL
       );
+      let isAdmin = isOwner;
+      if (user && !user.isAnonymous && user.emailVerified && !isOwner) {
+        try {
+          const snapshot = await db.ref(`admins/${user.uid}`).once('value');
+          const record = snapshot.val();
+          isAdmin = Boolean(record && record.email === user.email.toLowerCase());
+        } catch (error) {
+          console.error('Could not verify admin access:', error);
+          if (stateChangeId !== authStateChangeId) return;
+          adminAccessMessage.textContent = 'Could not verify admin access. Please try again.';
+          return;
+        }
+      }
+      if (stateChangeId !== authStateChangeId) return;
       setDataAccess(isAdmin);
 
       if (!user) {
