@@ -36,12 +36,14 @@
   <p id="accountCreateLink" class="small">Need an account? <a href="/GimkitWeb/signUp/">Create one</a>.</p>
   <div id="googleExtra" class="section" hidden>
     <h2>Finish setting up your account</h2>
-    <p class="small">Choose a username and password to use with <span id="googleEmail"></span>.</p>
-    <input id="linkUsername" type="text" placeholder="Username" autocomplete="nickname" />
-    <input id="linkPassword" type="password" placeholder="Password" autocomplete="new-password" />
-    <input id="linkPasswordConfirm" type="password" placeholder="Confirm password" autocomplete="new-password" />
-    <button id="linkBtn" type="button">Complete account</button>
-    <button id="linkCancel" type="button">Cancel</button>
+    <form id="googleSetupForm" onsubmit="return false;">
+      <p class="small">Choose a username and password to use with <span id="googleEmail"></span>.</p>
+      <input id="linkUsername" type="text" placeholder="Username" autocomplete="nickname" />
+      <input id="linkPassword" type="password" placeholder="Password" autocomplete="new-password" />
+      <input id="linkPasswordConfirm" type="password" placeholder="Confirm password" autocomplete="new-password" />
+      <button id="linkBtn" type="button">Complete account</button>
+      <button id="linkCancel" type="button">Cancel</button>
+    </form>
     <p id="linkError" class="small" role="alert" aria-live="polite"></p>
   </div>
   <p id="adminAccessMessage" class="small" role="status" aria-live="polite">Sign in with the authorized Google account to access Admin Mode.</p>
@@ -235,7 +237,7 @@
           : error.message || 'Could not complete account setup.';
         linkBtn.disabled = false;
       }
-    }
+    });
 
     function signOut() {
       auth.signOut().catch(err => console.error('Sign-out failed:', err));
