@@ -24,6 +24,7 @@
   </style>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 <body>
   <a href="/GimkitWeb/">← Back to site</a>
@@ -73,6 +74,7 @@
       firebase.app();
     }
     const auth = firebase.auth();
+    const usersRef = firebase.database().ref('users');
 
     // Ensure persistence (keeps user signed in across reloads/tabs)
     auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e => console.warn('Could not set persistence:', e));
@@ -95,6 +97,13 @@
     function showError(msg) { errorMsg.textContent = msg || ''; }
     function showLinkError(msg) { linkError.textContent = msg || ''; }
 
+    function saveUserProfile(user) {
+      const profile = {};
+      if (user.displayName) profile.username = user.displayName;
+      if (user.email) profile.email = user.email.toLowerCase();
+      return usersRef.child(user.uid).update(profile);
+    }
+
     // Basic email/password sign in
     signInBtn.addEventListener('click', () => {
       showError('');
@@ -103,7 +112,10 @@
       if (!email || !password) { showError('Please enter both email and password.'); return; }
 
       auth.signInWithEmailAndPassword(email, password)
-        .then(() => { window.location.href = '/GimkitWeb/'; })
+        .then(async userCredential => {
+          await saveUserProfile(userCredential.user);
+          window.location.href = '/GimkitWeb/';
+        })
         .catch(err => { console.error('Sign-in failed:', err); showError(err.message || 'Sign-in failed.'); });
     });
 
@@ -126,7 +138,12 @@
             // Do not redirect yet — wait for user to complete linking
           } else {
             // Existing user, just redirect
-            window.location.href = '/GimkitWeb/';
+            saveUserProfile(user)
+              .then(() => { window.location.href = '/GimkitWeb/'; })
+              .catch(err => {
+                console.error('Could not save user profile:', err);
+                showError(err.message || 'Could not save user profile.');
+              });
           }
         })
         .catch(err => { console.error('Google sign-in failed:', err); showError(err.message || 'Google sign-in failed.'); });
@@ -162,6 +179,7 @@
           // Set displayName (username) on the linked account
           return auth.currentUser.updateProfile({ displayName: username });
         })
+        .then(() => saveUserProfile(auth.currentUser))
         .then(() => {
           // Done — redirect to site
           window.location.href = '/GimkitWeb/';
