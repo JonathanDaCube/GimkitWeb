@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Owner Mode — Gimkit Community</title>
+  <link rel="stylesheet" href="/GimkitWeb/site-nav.css" />
+  <script src="/GimkitWeb/site-nav.js" defer></script>
+  <style>
+    body { font-family: Arial, sans-serif; }
+    .section { background:#f8fafc; border-radius:8px; padding:16px; margin:16px 0; }
+    #adminForm { display:flex; flex-wrap:wrap; gap:8px; }
+    #adminForm input { box-sizing:border-box; padding:10px; }
+    #adminUid { flex:1 1 200px; }
+    #adminEmail { flex:1 1 240px; }
+    #adminList { padding:0; list-style:none; }
+    #adminList li { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid #ddd; }
+    #adminWorkspace { width:100%; height:75vh; min-height:600px; border:1px solid #ddd; border-radius:8px; background:white; }
+    .small { color:#555; font-size:.9rem; }
+  </style>
+</head>
+<body>
+  <div id="ownerAuth">
+    <span id="ownerUserInfo" class="small" aria-live="polite"></span>
+    <form id="ownerAuthForm" onsubmit="return false;">
+      <input id="ownerLoginEmail" type="email" placeholder="Email" autocomplete="username" required />
+      <input id="ownerLoginPassword" type="password" placeholder="Password" autocomplete="current-password" required />
+      <button id="ownerEmailSignIn" type="button">Sign in</button>
+      <button id="ownerGoogleSignIn" type="button">Sign in with Google</button>
+    </form>
+    <button id="ownerSignOut" type="button" hidden>Sign out</button>
+  </div>
+  <h1>Owner Mode</h1>
+  <p id="ownerAccessMessage" class="small" role="status" aria-live="polite">Sign in with the owner account to access Owner Mode.</p>
+
+  <main id="ownerContent" hidden>
+    <section class="section" aria-labelledby="adminManagementHeading">
+      <h2 id="adminManagementHeading">Manage admins</h2>
+      <p class="small">Add an admin using their Firebase Authentication user UID and verified email. Find the UID in Firebase Console under Authentication users.</p>
+      <form id="adminForm">
+        <input id="adminUid" type="text" placeholder="Firebase user UID" autocomplete="off" required />
+        <input id="adminEmail" type="email" placeholder="Verified account email" autocomplete="email" required />
+        <button id="saveAdminButton" type="submit">Add admin</button>
+      </form>
+      <p id="adminListStatus" class="small" role="status" aria-live="polite"></p>
+      <ul id="adminList"></ul>
+    </section>
+
+    <section class="section" aria-labelledby="adminWorkspaceHeading">
+      <h2 id="adminWorkspaceHeading">Admin settings</h2>
+      <iframe id="adminWorkspace" title="Admin Mode settings"></iframe>
+    </section>
+  </main>
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDq6eOzOWLd88XG-wFo0LN1O3l2Yyvdfls",
+      authDomain: "gimkit-web.firebaseapp.com",
+      databaseURL: "https://gimkit-web-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "gimkit-web",
+      storageBucket: "gimkit-web.firebasedestorage.app",
+      messagingSenderId: "192282058649",
+      appId: "1:192282058649:web:cdcdfdb49c429fc0e33d08",
+      measurementId: "G-TLCCKP056J"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const adminsRef = firebase.database().ref('admins');
+    const ownerEmail = 'jonathanlam0820@gmail.com';
+    const ownerUserInfo = document.getElementById('ownerUserInfo');
+    const ownerLoginEmail = document.getElementById('ownerLoginEmail');
+    const ownerLoginPassword = document.getElementById('ownerLoginPassword');
+    const ownerEmailSignIn = document.getElementById('ownerEmailSignIn');
+    const ownerGoogleSignIn = document.getElementById('ownerGoogleSignIn');
+    const ownerSignOut = document.getElementById('ownerSignOut');
+    const ownerContent = document.getElementById('ownerContent');
+    const ownerAccessMessage = document.getElementById('ownerAccessMessage');
+    const adminForm = document.getElementById('adminForm');
+    const adminUid = document.getElementById('adminUid');
+    const adminEmail = document.getElementById('adminEmail');
+    const adminList = document.getElementById('adminList');
+    const adminListStatus = document.getElementById('adminListStatus');
+    const adminWorkspace = document.getElementById('adminWorkspace');
+    let isOwner = false;
+    let adminListListenerAttached = false;
+    let authStateChangeId = 0;
+
+    function setOwnerAccess(allowed) {
+      isOwner = allowed;
+      ownerContent.hidden = !allowed;
+    }
+
+    ownerEmailSignIn.addEventListener('click', () => {
+      auth.signInWithEmailAndPassword(ownerLoginEmail.value.trim(), ownerLoginPassword.value)
+        .catch(error => {
+          console.error('Owner sign-in failed:', error);
+          ownerAccessMessage.textContent = error.message || 'Sign-in failed.';
+        });
+    });
+
+    ownerGoogleSignIn.addEventListener('click', () => {
+      auth.signInWithPopup(new firebase.auth.GoogleAuthProvider())
+        .catch(error => {
+          console.error('Owner Google sign-in failed:', error);
+          ownerAccessMessage.textContent = error.message || 'Google sign-in failed.';
+        });
+    });
+
+    ownerSignOut.addEventListener('click', () => {
+      auth.signOut().catch(error => console.error('Owner sign-out failed:', error));
+    });
+
+    function renderAdmins(snapshot) {
+      adminList.replaceChildren();
+      const records = [];
+      snapshot.forEach(child => {
+        const record = child.val();
+        if (record && record.email) records.push({ uid: child.key, email: record.email });
+      });
+      records.sort((a, b) => a.email.localeCompare(b.email));
+
+      if (records.length === 0) {
+        const emptyItem = document.createElement('li');
+        emptyItem.textContent = 'No additional admins have been added.';
+        adminList.appendChild(emptyItem);
+        return;
+      }
+
+      records.forEach(record => {
+        const item = document.createElement('li');
+        const detail = document.createElement('span');
+        detail.textContent = `${record.email} (${record.uid})`;
+        const removeButton = document.createElement('button');
+        removeButton.type = 'button';
+        removeButton.textContent = 'Remove';
+        removeButton.addEventListener('click', async () => {
+          if (!isOwner || !confirm(`Remove admin access for ${record.email}?`)) return;
+          try {
+            await adminsRef.child(record.uid).remove();
+            adminListStatus.textContent = `Removed ${record.email}.`;
+          } catch (error) {
+            console.error('Could not remove admin:', error);
+            adminListStatus.textContent = 'Could not remove admin. Check the database rules and try again.';
+          }
+        });
+        item.append(detail, removeButton);
+        adminList.appendChild(item);
+      });
+    }
+
+    adminForm.addEventListener('submit', async event => {
+      event.preventDefault();
+      if (!isOwner) return;
+
+      const uid = adminUid.value.trim();
+      const email = adminEmail.value.trim().toLowerCase();
+      if (!uid || /[.#$/\[\]]/.test(uid)) {
+        adminListStatus.textContent = 'Enter a valid Firebase Authentication user UID.';
+        return;
+      }
+
+      try {
+        await adminsRef.child(uid).set({ email, addedAt: Date.now() });
+        adminForm.reset();
+        adminListStatus.textContent = `Added ${email}. They must sign in with this verified email to use Admin Mode.`;
+      } catch (error) {
+        console.error('Could not add admin:', error);
+        adminListStatus.textContent = 'Could not add admin. Check the database rules and try again.';
+      }
+    });
+
+    auth.onAuthStateChanged(user => {
+      const stateChangeId = ++authStateChangeId;
+      setOwnerAccess(false);
+      if (!user) {
+        ownerUserInfo.textContent = '';
+        ownerLoginEmail.style.display = '';
+        ownerLoginPassword.style.display = '';
+        ownerEmailSignIn.style.display = '';
+        ownerGoogleSignIn.style.display = '';
+        ownerSignOut.hidden = true;
+      } else {
+        ownerUserInfo.textContent = `Signed in as ${user.displayName || user.email || 'user'}`;
+        ownerLoginEmail.style.display = 'none';
+        ownerLoginPassword.style.display = 'none';
+        ownerEmailSignIn.style.display = 'none';
+        ownerGoogleSignIn.style.display = 'none';
+        ownerSignOut.hidden = false;
+      }
+      if (!user) {
+        ownerAccessMessage.textContent = 'Sign in with the owner account to access Owner Mode.';
+        return;
+      }
+
+      const authorized = Boolean(
+        !user.isAnonymous &&
+        user.emailVerified &&
+        user.email &&
+        user.email.toLowerCase() === ownerEmail
+      );
+      if (!authorized) {
+        ownerAccessMessage.textContent = 'Not authorized for Owner Mode.';
+        return;
+      }
+      if (stateChangeId !== authStateChangeId) return;
+
+      ownerAccessMessage.textContent = '';
+      setOwnerAccess(true);
+      if (!adminWorkspace.dataset.loaded) {
+        adminWorkspace.dataset.loaded = 'true';
+        adminWorkspace.src = '/GimkitWeb/admin/?embedded=1';
+      }
+      if (!adminListListenerAttached) {
+        adminListListenerAttached = true;
+        adminsRef.on('value', renderAdmins, error => {
+          console.error('Could not load admin list:', error);
+          adminListStatus.textContent = 'Could not load admins. Check the database rules and try again.';
+        });
+      }
+    }, error => {
+      console.error('Could not determine owner access:', error);
+      ownerAccessMessage.textContent = 'Could not verify Owner Mode access. Please refresh and try again.';
+    });
+  </script>
+</body>
+</html>

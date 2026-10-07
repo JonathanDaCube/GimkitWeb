@@ -5,6 +5,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Gimkit Community Web</title>
+  <link rel="stylesheet" href="/GimkitWeb/site-nav.css" />
+  <script src="/GimkitWeb/site-nav.js" defer></script>
   <style>
     body { font-family: Arial, sans-serif; padding: 20px; }
     #topNav { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
@@ -108,7 +110,6 @@
   const signUpLink = document.getElementById('signUpLink');
   const signOutBtn = document.getElementById('signOutBtn');
   const userInfo = document.getElementById('userInfo');
-  const adminLink = document.getElementById('adminLink');
   const writeAccessNotice = document.getElementById('writeAccessNotice');
   let canWrite = false;
   let canAdminister = false;
@@ -151,23 +152,34 @@
   setWriteAccess(false, false);
   signOutBtn.addEventListener('click', signOut);
 
-  auth.onAuthStateChanged(user => {
+  let authStateChangeId = 0;
+  auth.onAuthStateChanged(async user => {
+    const stateChangeId = ++authStateChangeId;
     if (user && user.isAnonymous) {
       setWriteAccess(false, false);
-      if (adminLink) adminLink.hidden = true;
       auth.signOut().catch(err => console.error('Could not sign out old anonymous session:', err));
       return;
     }
     const isSignedIn = Boolean(user);
-    const isAdmin = Boolean(
+    const isOwner = Boolean(
       user &&
       !user.isAnonymous &&
       user.emailVerified &&
       user.email &&
       user.email.toLowerCase() === 'jonathanlam0820@gmail.com'
     );
+    let isAdmin = isOwner;
+    if (user && !user.isAnonymous && user.emailVerified && !isOwner) {
+      try {
+        const snapshot = await db.ref(`admins/${user.uid}`).once('value');
+        const record = snapshot.val();
+        isAdmin = Boolean(record && record.email === user.email.toLowerCase());
+      } catch (error) {
+        console.error('Could not verify admin access:', error);
+      }
+    }
+    if (stateChangeId !== authStateChangeId) return;
     setWriteAccess(isSignedIn, isAdmin);
-    if (adminLink) adminLink.hidden = !isAdmin;
     if (!isSignedIn) {
       userInfo.textContent = '';
       signInLink.style.display = '';
@@ -380,7 +392,7 @@
   });
 </script>
 
-<p class="small" style="margin-top: 30px; text-align: center;">Made by JonathanDaCube • More Features Coming Soon<a id="adminLink" href="/GimkitWeb/admin" hidden> • Admin Mode</a></p>
+<p class="small" style="margin-top: 30px; text-align: center;">Made by JonathanDaCube • More Features Coming Soon</p>
 
 </body>
 </html>

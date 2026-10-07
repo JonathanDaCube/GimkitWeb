@@ -7,7 +7,7 @@ Visitors can read the public games and meeting lists without signing in. Realtim
 
 News is publicly readable at `/news/`. The authorized administrator can publish, edit, and delete posts from Admin Mode; each post includes a title, a homepage summary, and article text.
 
-Admin Mode requires a verified sign-in for `jonathanlam0820@gmail.com`. Realtime Database rules enforce that account restriction for administrative changes; other signed-in users can create game and meeting entries but cannot edit or delete existing entries. The `/admin/` page is a static GitHub Pages file, so its source URL itself cannot be made private; the admin interface is hidden unless the authorized account is signed in, and the database blocks unauthorized administrative writes.
+Admin Mode is available to the verified owner account and additional verified admins managed from Owner Mode. The owner can add an admin by entering their Firebase Authentication UID and verified account email, or remove them at any time. Realtime Database rules enforce admin privileges for administrative changes; other signed-in users can create game and meeting entries but cannot edit or delete existing entries. The `/admin/` and `/owner/` pages are static GitHub Pages files, so their source URLs cannot be made private; the interfaces are gated, and the database rules protect privileged writes.
 
 Deploy the database rules with the Firebase CLI (no Cloud Functions or paid plan is required):
 

@@ -1,30 +1,38 @@
 {
   "rules": {
     ".read": false,
+    "admins": {
+      ".read": "auth != null && auth.token.email == 'jonathanlam0820@gmail.com' && auth.token.email_verified == true",
+      ".write": "auth != null && auth.token.email == 'jonathanlam0820@gmail.com' && auth.token.email_verified == true",
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid && auth.token.email_verified == true",
+        ".write": "auth != null && auth.token.email == 'jonathanlam0820@gmail.com' && auth.token.email_verified == true"
+      }
+    },
     "activeGames": {
       ".read": true,
-      ".write": "auth != null && auth.token.email == 'jonathanlam0820@gmail.com' && auth.token.email_verified == true",
+      ".write": "auth != null && auth.token.email_verified == true && (auth.token.email == 'jonathanlam0820@gmail.com' || root.child('admins').child(auth.uid).child('email').val() == auth.token.email)",
       "$gameId": {
-        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && (!data.exists() || (auth.token.email == 'jonathanlam0820@gmail.com' && auth.token.email_verified == true))"
+        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && (!data.exists() || (auth.token.email_verified == true && (auth.token.email == 'jonathanlam0820@gmail.com' || root.child('admins').child(auth.uid).child('email').val() == auth.token.email)))"
       }
     },
     "activeMeetings": {
       ".read": true,
-      ".write": "auth != null && auth.token.email == 'jonathanlam0820@gmail.com' && auth.token.email_verified == true",
+      ".write": "auth != null && auth.token.email_verified == true && (auth.token.email == 'jonathanlam0820@gmail.com' || root.child('admins').child(auth.uid).child('email').val() == auth.token.email)",
       "$meetingId": {
-        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && (!data.exists() || (auth.token.email == 'jonathanlam0820@gmail.com' && auth.token.email_verified == true))"
+        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && (!data.exists() || (auth.token.email_verified == true && (auth.token.email == 'jonathanlam0820@gmail.com' || root.child('admins').child(auth.uid).child('email').val() == auth.token.email)))"
       }
     },
     "scheduledMeetings": {
       ".read": true,
-      ".write": "auth != null && auth.token.email == 'jonathanlam0820@gmail.com' && auth.token.email_verified == true",
+      ".write": "auth != null && auth.token.email_verified == true && (auth.token.email == 'jonathanlam0820@gmail.com' || root.child('admins').child(auth.uid).child('email').val() == auth.token.email)",
       "$meetingId": {
-        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && (!data.exists() || (auth.token.email == 'jonathanlam0820@gmail.com' && auth.token.email_verified == true))"
+        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && (!data.exists() || (auth.token.email_verified == true && (auth.token.email == 'jonathanlam0820@gmail.com' || root.child('admins').child(auth.uid).child('email').val() == auth.token.email)))"
       }
     },
     "news": {
       ".read": true,
-      ".write": "auth != null && auth.token.email == 'jonathanlam0820@gmail.com' && auth.token.email_verified == true",
+      ".write": "auth != null && auth.token.email_verified == true && (auth.token.email == 'jonathanlam0820@gmail.com' || root.child('admins').child(auth.uid).child('email').val() == auth.token.email)",
       ".indexOn": ["createdAt"]
     },
     "users": {
