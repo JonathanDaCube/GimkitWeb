@@ -10,9 +10,14 @@
     body { font-family: Arial, sans-serif; }
     .section { background:#f8fafc; border-radius:8px; padding:16px; margin:16px 0; }
     #adminSearch { box-sizing:border-box; width:100%; max-width:520px; padding:10px; }
+    #ownerContent ul { padding:0; list-style:none; }
+    #ownerContent li { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:8px; margin:6px 0; background:#fff; border:1px solid #e6eef6; }
     #adminSearchResults, #adminList { padding:0; list-style:none; }
     #adminSearchResults li, #adminList li { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid #ddd; }
-    #adminWorkspace { width:100%; height:75vh; min-height:600px; border:1px solid #ddd; border-radius:8px; background:white; }
+    #adminNews { padding:0; list-style:none; }
+    #adminNews li { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid #ddd; }
+    #newsForm { display:flex; flex-direction:column; gap:8px; }
+    #newsForm input, #newsForm textarea { box-sizing:border-box; width:100%; max-width:640px; padding:8px; }
     .small { color:#555; font-size:.9rem; }
     .admin-user-detail { overflow-wrap:anywhere; }
   </style>
@@ -30,12 +35,14 @@
   </div>
   <section id="googleExtra" class="section" hidden>
     <h2>Finish setting up your account</h2>
-    <p class="small">Choose a username and password to use with <span id="googleEmail"></span>.</p>
-    <input id="linkUsername" type="text" placeholder="Username" autocomplete="nickname" />
-    <input id="linkPassword" type="password" placeholder="Password" autocomplete="new-password" />
-    <input id="linkPasswordConfirm" type="password" placeholder="Confirm password" autocomplete="new-password" />
-    <button id="linkBtn" type="button">Complete account</button>
-    <button id="linkCancel" type="button">Cancel</button>
+    <form id="googleSetupForm" onsubmit="return false;">
+      <p class="small">Choose a username and password to use with <span id="googleEmail"></span>.</p>
+      <input id="linkUsername" type="text" placeholder="Username" autocomplete="nickname" />
+      <input id="linkPassword" type="password" placeholder="Password" autocomplete="new-password" />
+      <input id="linkPasswordConfirm" type="password" placeholder="Confirm password" autocomplete="new-password" />
+      <button id="linkBtn" type="button">Complete account</button>
+      <button id="linkCancel" type="button">Cancel</button>
+    </form>
     <p id="linkError" class="small" role="alert" aria-live="polite"></p>
   </section>
   <h1>Owner Mode</h1>
@@ -54,9 +61,42 @@
       <ul id="adminList"></ul>
     </section>
 
-    <section class="section" aria-labelledby="adminWorkspaceHeading">
-      <h2 id="adminWorkspaceHeading">Admin settings</h2>
-      <iframe id="adminWorkspace" title="Admin Mode settings"></iframe>
+    <h2>Admin controls</h2>
+    <p class="small">Administrative controls for managing active games and meetings. Actions are immediate - use with care.</p>
+
+    <section class="section" aria-labelledby="quickActionsHeading">
+      <h3 id="quickActionsHeading">Quick actions</h3>
+      <button id="clearGames">Clear all Active Games</button>
+      <button id="clearMeetings">Clear all Active Meetings</button>
+      <button id="clearScheduled">Clear all Scheduled Meetings</button>
+    </section>
+
+    <section class="section" aria-labelledby="activeGamesHeading">
+      <h3 id="activeGamesHeading">Active games</h3>
+      <ul id="adminActiveGames"></ul>
+    </section>
+
+    <section class="section" aria-labelledby="activeMeetingsHeading">
+      <h3 id="activeMeetingsHeading">Active meetings</h3>
+      <ul id="adminActiveMeetings"></ul>
+    </section>
+
+    <section class="section" aria-labelledby="scheduledMeetingsHeading">
+      <h3 id="scheduledMeetingsHeading">Scheduled meetings</h3>
+      <ul id="adminScheduled"></ul>
+    </section>
+
+    <section class="section" aria-labelledby="newsHeading">
+      <h3 id="newsHeading">News</h3>
+      <form id="newsForm">
+        <input id="newsTitle" type="text" placeholder="News title" maxlength="120" required />
+        <textarea id="newsSummary" placeholder="Homepage summary" maxlength="280" required></textarea>
+        <textarea id="newsContent" placeholder="Full news article" rows="8" required></textarea>
+        <button id="saveNewsBtn" type="submit" data-auth-required>Publish news</button>
+        <button id="cancelNewsEditBtn" type="button" data-auth-required hidden>Cancel edit</button>
+      </form>
+      <p id="newsEditorStatus" class="small" role="status" aria-live="polite"></p>
+      <ul id="adminNews"></ul>
     </section>
   </main>
 
@@ -82,6 +122,10 @@
       .catch(error => console.warn('Could not set authentication persistence:', error));
     const adminsRef = db.ref('admins');
     const usersRef = db.ref('users');
+    const activeGamesRef = db.ref('activeGames');
+    const activeMeetingsRef = db.ref('activeMeetings');
+    const scheduledMeetingsRef = db.ref('scheduledMeetings');
+    const newsRef = db.ref('news');
     const ownerEmail = 'jonathanlam0820@gmail.com';
     const ownerUserInfo = document.getElementById('ownerUserInfo');
     const ownerLoginEmail = document.getElementById('ownerLoginEmail');
@@ -104,8 +148,22 @@
     const adminSearchResults = document.getElementById('adminSearchResults');
     const adminList = document.getElementById('adminList');
     const adminListStatus = document.getElementById('adminListStatus');
-    const adminWorkspace = document.getElementById('adminWorkspace');
+    const adminContent = document.getElementById('ownerContent');
+    const newsForm = document.getElementById('newsForm');
+    const newsTitleInput = document.getElementById('newsTitle');
+    const newsSummaryInput = document.getElementById('newsSummary');
+    const newsContentInput = document.getElementById('newsContent');
+    const saveNewsBtn = document.getElementById('saveNewsBtn');
+    const cancelNewsEditBtn = document.getElementById('cancelNewsEditBtn');
+    const newsEditorStatus = document.getElementById('newsEditorStatus');
+    const adminNews = document.getElementById('adminNews');
+    const adminActiveGames = document.getElementById('adminActiveGames');
+    const adminActiveMeetings = document.getElementById('adminActiveMeetings');
+    const adminScheduled = document.getElementById('adminScheduled');
     let isOwner = false;
+    let canManageData = false;
+    let editingNewsKey = null;
+    let adminDataInitialized = false;
     let adminListListenerAttached = false;
     let adminListLoaded = false;
     let adminListLoadFailed = false;
@@ -117,6 +175,7 @@
     function setOwnerAccess(allowed) {
       isOwner = allowed;
       ownerContent.hidden = !allowed;
+      setDataAccess(allowed);
     }
 
     ownerEmailSignIn.addEventListener('click', () => {
@@ -200,6 +259,206 @@
       auth.signOut().catch(error => console.error('Owner sign-out failed:', error));
     });
 
+    function setDataAccess(allowed) {
+      canManageData = allowed;
+      adminContent.hidden = !allowed;
+      document.querySelectorAll('[data-auth-required]').forEach(button => {
+        button.disabled = !allowed;
+        button.hidden = !allowed;
+      });
+      cancelNewsEditBtn.hidden = !allowed || !editingNewsKey;
+      newsForm.querySelectorAll('input, textarea').forEach(field => {
+        field.disabled = !allowed;
+      });
+    }
+
+    const adminActionButtons = {
+      clearGames: document.getElementById('clearGames'),
+      clearMeetings: document.getElementById('clearMeetings'),
+      clearScheduled: document.getElementById('clearScheduled')
+    };
+    Object.values(adminActionButtons).forEach(button => {
+      button.dataset.authRequired = '';
+    });
+    newsForm.querySelectorAll('input, textarea').forEach(field => {
+      field.dataset.authRequired = '';
+    });
+    setDataAccess(false);
+
+    adminActionButtons.clearGames.addEventListener('click', async () => {
+      if (!canManageData || !confirm('Remove all active games?')) return;
+      try {
+        await activeGamesRef.remove();
+        alert('All active games removed.');
+      } catch (error) {
+        console.error('Could not clear active games:', error);
+        alert('Failed to clear active games.');
+      }
+    });
+
+    adminActionButtons.clearMeetings.addEventListener('click', async () => {
+      if (!canManageData || !confirm('Remove all active meetings?')) return;
+      try {
+        await activeMeetingsRef.remove();
+        alert('All active meetings removed.');
+      } catch (error) {
+        console.error('Could not clear active meetings:', error);
+        alert('Failed to clear active meetings.');
+      }
+    });
+
+    adminActionButtons.clearScheduled.addEventListener('click', async () => {
+      if (!canManageData || !confirm('Remove all scheduled meetings?')) return;
+      try {
+        await scheduledMeetingsRef.remove();
+        alert('All scheduled meetings removed.');
+      } catch (error) {
+        console.error('Could not clear scheduled meetings:', error);
+        alert('Failed to clear scheduled meetings.');
+      }
+    });
+
+    function renderList(ref, container) {
+      ref.on('value', snapshot => {
+        container.replaceChildren();
+        snapshot.forEach(child => {
+          const value = child.val();
+          const item = document.createElement('li');
+          const detail = document.createElement('span');
+          detail.textContent = (value.code || value.title || '(no title)') +
+            (value.link ? ' - ' + value.link : '');
+          const removeButton = document.createElement('button');
+          removeButton.type = 'button';
+          removeButton.textContent = 'Remove';
+          removeButton.dataset.authRequired = '';
+          removeButton.hidden = !canManageData;
+          removeButton.disabled = !canManageData;
+          removeButton.addEventListener('click', () => {
+            if (!canManageData || !confirm('Remove this item?')) return;
+            ref.child(child.key).remove().catch(error => {
+              console.error('Could not remove item:', error);
+            });
+          });
+          item.append(detail, removeButton);
+          container.appendChild(item);
+        });
+      }, error => {
+        console.error('Could not load admin list:', error);
+      });
+    }
+
+    function resetNewsForm() {
+      editingNewsKey = null;
+      newsForm.reset();
+      saveNewsBtn.textContent = 'Publish news';
+      cancelNewsEditBtn.hidden = true;
+      newsEditorStatus.textContent = '';
+    }
+
+    cancelNewsEditBtn.addEventListener('click', resetNewsForm);
+
+    newsForm.addEventListener('submit', async event => {
+      event.preventDefault();
+      if (!canManageData) return;
+
+      const title = newsTitleInput.value.trim();
+      const summary = newsSummaryInput.value.trim();
+      const content = newsContentInput.value.trim();
+      if (!title || !summary || !content) {
+        newsEditorStatus.textContent = 'Enter a title, homepage summary, and article.';
+        return;
+      }
+
+      const now = Date.now();
+      const newsItem = { title, summary, content, updatedAt: now };
+      try {
+        if (editingNewsKey) {
+          await newsRef.child(editingNewsKey).update(newsItem);
+          newsEditorStatus.textContent = 'News updated.';
+        } else {
+          await newsRef.push().set({ ...newsItem, createdAt: now });
+          newsEditorStatus.textContent = 'News published.';
+        }
+        resetNewsForm();
+      } catch (error) {
+        console.error('Could not save news:', error);
+        newsEditorStatus.textContent = 'Could not save news. Check your sign-in and try again.';
+      }
+    });
+
+    function renderNews(snapshot) {
+      adminNews.replaceChildren();
+      const entries = [];
+      snapshot.forEach(child => {
+        const newsItem = child.val();
+        if (newsItem && newsItem.title) entries.push({ key: child.key, ...newsItem });
+      });
+      entries.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+
+      if (entries.length === 0) {
+        const emptyItem = document.createElement('li');
+        emptyItem.textContent = 'No news has been published yet.';
+        adminNews.appendChild(emptyItem);
+        return;
+      }
+
+      entries.forEach(newsItem => {
+        const item = document.createElement('li');
+        const detail = document.createElement('span');
+        detail.textContent = `${newsItem.title} - ${newsItem.summary}`;
+        const actions = document.createElement('span');
+        const editButton = document.createElement('button');
+        editButton.type = 'button';
+        editButton.textContent = 'Edit';
+        editButton.dataset.authRequired = '';
+        editButton.hidden = !canManageData;
+        editButton.disabled = !canManageData;
+        editButton.addEventListener('click', () => {
+          if (!canManageData) return;
+          editingNewsKey = newsItem.key;
+          newsTitleInput.value = newsItem.title || '';
+          newsSummaryInput.value = newsItem.summary || '';
+          newsContentInput.value = newsItem.content || '';
+          saveNewsBtn.textContent = 'Save changes';
+          cancelNewsEditBtn.hidden = false;
+          newsEditorStatus.textContent = `Editing "${newsItem.title}".`;
+          newsTitleInput.focus();
+        });
+
+        const deleteButton = document.createElement('button');
+        deleteButton.type = 'button';
+        deleteButton.textContent = 'Delete';
+        deleteButton.dataset.authRequired = '';
+        deleteButton.hidden = !canManageData;
+        deleteButton.disabled = !canManageData;
+        deleteButton.addEventListener('click', async () => {
+          if (!canManageData || !confirm(`Delete "${newsItem.title}"?`)) return;
+          try {
+            await newsRef.child(newsItem.key).remove();
+            if (editingNewsKey === newsItem.key) resetNewsForm();
+          } catch (error) {
+            console.error('Could not delete news:', error);
+            newsEditorStatus.textContent = 'Could not delete news. Check your sign-in and try again.';
+          }
+        });
+        actions.append(editButton, deleteButton);
+        item.append(detail, actions);
+        adminNews.appendChild(item);
+      });
+    }
+
+    function initializeAdminData() {
+      if (adminDataInitialized) return;
+      adminDataInitialized = true;
+      renderList(activeGamesRef, adminActiveGames);
+      renderList(activeMeetingsRef, adminActiveMeetings);
+      renderList(scheduledMeetingsRef, adminScheduled);
+      newsRef.on('value', renderNews, error => {
+        console.error('Could not load news for editing:', error);
+        newsEditorStatus.textContent = 'Could not load news.';
+      });
+    }
+
     function renderAdmins(snapshot) {
       adminList.replaceChildren();
       const records = [];
@@ -219,6 +478,7 @@
         const emptyItem = document.createElement('li');
         emptyItem.textContent = 'No additional admins have been added.';
         adminList.appendChild(emptyItem);
+        renderUserSearchResults();
         return;
       }
 
@@ -397,10 +657,7 @@
           adminSearchStatus.textContent = 'Could not load users. Check the database rules and try again.';
         }
       }
-      if (!adminWorkspace.dataset.loaded) {
-        adminWorkspace.dataset.loaded = 'true';
-        adminWorkspace.src = '/GimkitWeb/admin/?embedded=1';
-      }
+      initializeAdminData();
       if (!adminListListenerAttached) {
         adminListListenerAttached = true;
         adminsRef.on('value', renderAdmins, error => {
