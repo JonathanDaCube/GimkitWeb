@@ -28,6 +28,16 @@
     </form>
     <button id="ownerSignOut" type="button" hidden>Sign out</button>
   </div>
+  <section id="googleExtra" class="section" hidden>
+    <h2>Finish setting up your account</h2>
+    <p class="small">Choose a username and password to use with <span id="googleEmail"></span>.</p>
+    <input id="linkUsername" type="text" placeholder="Username" autocomplete="nickname" />
+    <input id="linkPassword" type="password" placeholder="Password" autocomplete="new-password" />
+    <input id="linkPasswordConfirm" type="password" placeholder="Confirm password" autocomplete="new-password" />
+    <button id="linkBtn" type="button">Complete account</button>
+    <button id="linkCancel" type="button">Cancel</button>
+    <p id="linkError" class="small" role="alert" aria-live="polite"></p>
+  </section>
   <h1>Owner Mode</h1>
   <p id="ownerAccessMessage" class="small" role="status" aria-live="polite">Sign in with the owner account to access Owner Mode.</p>
 
@@ -68,6 +78,8 @@
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.database();
+    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+      .catch(error => console.warn('Could not set authentication persistence:', error));
     const adminsRef = db.ref('admins');
     const usersRef = db.ref('users');
     const ownerEmail = 'jonathanlam0820@gmail.com';
@@ -77,6 +89,14 @@
     const ownerEmailSignIn = document.getElementById('ownerEmailSignIn');
     const ownerGoogleSignIn = document.getElementById('ownerGoogleSignIn');
     const ownerSignOut = document.getElementById('ownerSignOut');
+    const googleExtra = document.getElementById('googleExtra');
+    const googleEmail = document.getElementById('googleEmail');
+    const linkUsername = document.getElementById('linkUsername');
+    const linkPassword = document.getElementById('linkPassword');
+    const linkPasswordConfirm = document.getElementById('linkPasswordConfirm');
+    const linkBtn = document.getElementById('linkBtn');
+    const linkCancel = document.getElementById('linkCancel');
+    const linkError = document.getElementById('linkError');
     const ownerContent = document.getElementById('ownerContent');
     const ownerAccessMessage = document.getElementById('ownerAccessMessage');
     const adminSearch = document.getElementById('adminSearch');
@@ -109,10 +129,71 @@
 
     ownerGoogleSignIn.addEventListener('click', () => {
       auth.signInWithPopup(new firebase.auth.GoogleAuthProvider())
+        .then(result => {
+          if (!result.additionalUserInfo || !result.additionalUserInfo.isNewUser) return;
+          googleEmail.textContent = result.user.email || '';
+          linkUsername.value = result.user.displayName || '';
+          linkPassword.value = '';
+          linkPasswordConfirm.value = '';
+          linkError.textContent = '';
+          googleExtra.hidden = false;
+        })
         .catch(error => {
           console.error('Owner Google sign-in failed:', error);
           ownerAccessMessage.textContent = error.message || 'Google sign-in failed.';
         });
+    });
+
+    linkCancel.addEventListener('click', () => {
+      googleExtra.hidden = true;
+      linkError.textContent = '';
+      if (auth.currentUser) {
+        auth.signOut().catch(error => console.error('Sign-out after account setup cancellation failed:', error));
+      }
+    });
+
+    linkBtn.addEventListener('click', async () => {
+      const username = linkUsername.value.trim();
+      const password = linkPassword.value;
+      const passwordConfirm = linkPasswordConfirm.value;
+      const email = googleEmail.textContent.trim();
+      if (!username || !password) {
+        linkError.textContent = 'Enter a username and password.';
+        return;
+      }
+      if (password !== passwordConfirm) {
+        linkError.textContent = 'Passwords do not match.';
+        return;
+      }
+      if (!auth.currentUser) {
+        linkError.textContent = 'No authenticated user. Please sign in with Google again.';
+        return;
+      }
+
+      linkBtn.disabled = true;
+      linkError.textContent = '';
+      try {
+        const user = auth.currentUser;
+        const alreadyLinked = user.providerData.some(provider => provider.providerId === 'password');
+        const linkedUser = alreadyLinked
+          ? user
+          : (await user.linkWithCredential(
+            firebase.auth.EmailAuthProvider.credential(email, password)
+          )).user;
+        await linkedUser.updateProfile({ displayName: username });
+        await usersRef.child(linkedUser.uid).set({
+          username,
+          email: email.toLowerCase(),
+          createdAt: Date.now()
+        });
+        window.location.reload();
+      } catch (error) {
+        console.error('Owner Google account setup failed:', error);
+        linkError.textContent = error.code === 'auth/email-already-in-use'
+          ? 'That email is already in use with another account. Try signing in with email and password.'
+          : error.message || 'Could not complete account setup.';
+        linkBtn.disabled = false;
+      }
     });
 
     ownerSignOut.addEventListener('click', () => {
@@ -250,7 +331,7 @@
 
     adminSearch.addEventListener('input', renderUserSearchResults);
 
-    auth.onAuthStateChanged(user => {
+    auth.onAuthStateChanged(async user => {
       const stateChangeId = ++authStateChangeId;
       setOwnerAccess(false);
       if (!user) {
