@@ -36,6 +36,10 @@ body {
   text-decoration: none;
 }
 
+#siteSidebar a[hidden] {
+  display: none;
+}
+
 #siteSidebar a:hover,
 #siteSidebar a[aria-current="page"] {
   background: #dbeafe;
