@@ -9,14 +9,12 @@
   <style>
     body { font-family: Arial, sans-serif; }
     .section { background:#f8fafc; border-radius:8px; padding:16px; margin:16px 0; }
-    #adminForm { display:flex; flex-wrap:wrap; gap:8px; }
-    #adminForm input { box-sizing:border-box; padding:10px; }
-    #adminUid { flex:1 1 200px; }
-    #adminEmail { flex:1 1 240px; }
-    #adminList { padding:0; list-style:none; }
-    #adminList li { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid #ddd; }
+    #adminSearch { box-sizing:border-box; width:100%; max-width:520px; padding:10px; }
+    #adminSearchResults, #adminList { padding:0; list-style:none; }
+    #adminSearchResults li, #adminList li { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:10px 0; border-bottom:1px solid #ddd; }
     #adminWorkspace { width:100%; height:75vh; min-height:600px; border:1px solid #ddd; border-radius:8px; background:white; }
     .small { color:#555; font-size:.9rem; }
+    .admin-user-detail { overflow-wrap:anywhere; }
   </style>
 </head>
 <body>
@@ -36,12 +34,12 @@
   <main id="ownerContent" hidden>
     <section class="section" aria-labelledby="adminManagementHeading">
       <h2 id="adminManagementHeading">Manage admins</h2>
-      <p class="small">Add an admin using their Firebase Authentication user UID and verified email. Find the UID in Firebase Console under Authentication users.</p>
-      <form id="adminForm">
-        <input id="adminUid" type="text" placeholder="Firebase user UID" autocomplete="off" required />
-        <input id="adminEmail" type="email" placeholder="Verified account email" autocomplete="email" required />
-        <button id="saveAdminButton" type="submit">Add admin</button>
-      </form>
+      <p class="small">Search accounts registered on this site by username or email, then give or revoke admin access.</p>
+      <label for="adminSearch">Search users</label>
+      <input id="adminSearch" type="search" placeholder="Enter an email or username" autocomplete="off" />
+      <p id="adminSearchStatus" class="small" role="status" aria-live="polite"></p>
+      <ul id="adminSearchResults" aria-label="User search results"></ul>
+      <h3>Current admins</h3>
       <p id="adminListStatus" class="small" role="status" aria-live="polite"></p>
       <ul id="adminList"></ul>
     </section>
@@ -69,7 +67,9 @@
 
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
-    const adminsRef = firebase.database().ref('admins');
+    const db = firebase.database();
+    const adminsRef = db.ref('admins');
+    const usersRef = db.ref('users');
     const ownerEmail = 'jonathanlam0820@gmail.com';
     const ownerUserInfo = document.getElementById('ownerUserInfo');
     const ownerLoginEmail = document.getElementById('ownerLoginEmail');
@@ -79,14 +79,19 @@
     const ownerSignOut = document.getElementById('ownerSignOut');
     const ownerContent = document.getElementById('ownerContent');
     const ownerAccessMessage = document.getElementById('ownerAccessMessage');
-    const adminForm = document.getElementById('adminForm');
-    const adminUid = document.getElementById('adminUid');
-    const adminEmail = document.getElementById('adminEmail');
+    const adminSearch = document.getElementById('adminSearch');
+    const adminSearchStatus = document.getElementById('adminSearchStatus');
+    const adminSearchResults = document.getElementById('adminSearchResults');
     const adminList = document.getElementById('adminList');
     const adminListStatus = document.getElementById('adminListStatus');
     const adminWorkspace = document.getElementById('adminWorkspace');
     let isOwner = false;
     let adminListListenerAttached = false;
+    let adminListLoaded = false;
+    let adminListLoadFailed = false;
+    let userDirectoryLoaded = false;
+    let userDirectory = [];
+    let adminUids = new Set();
     let authStateChangeId = 0;
 
     function setOwnerAccess(allowed) {
@@ -117,9 +122,15 @@
     function renderAdmins(snapshot) {
       adminList.replaceChildren();
       const records = [];
+      adminListLoaded = true;
+      adminListLoadFailed = false;
+      adminUids = new Set();
       snapshot.forEach(child => {
         const record = child.val();
-        if (record && record.email) records.push({ uid: child.key, email: record.email });
+        if (record && record.email) {
+          records.push({ uid: child.key, email: record.email });
+          adminUids.add(child.key);
+        }
       });
       records.sort((a, b) => a.email.localeCompare(b.email));
 
@@ -136,12 +147,13 @@
         detail.textContent = `${record.email} (${record.uid})`;
         const removeButton = document.createElement('button');
         removeButton.type = 'button';
-        removeButton.textContent = 'Remove';
+        removeButton.textContent = 'Revoke admin access';
+        removeButton.setAttribute('aria-label', `Revoke admin access for ${record.email}`);
         removeButton.addEventListener('click', async () => {
           if (!isOwner || !confirm(`Remove admin access for ${record.email}?`)) return;
           try {
             await adminsRef.child(record.uid).remove();
-            adminListStatus.textContent = `Removed ${record.email}.`;
+            adminListStatus.textContent = `Revoked admin access for ${record.email}.`;
           } catch (error) {
             console.error('Could not remove admin:', error);
             adminListStatus.textContent = 'Could not remove admin. Check the database rules and try again.';
@@ -150,28 +162,93 @@
         item.append(detail, removeButton);
         adminList.appendChild(item);
       });
+      renderUserSearchResults();
     }
 
-    adminForm.addEventListener('submit', async event => {
-      event.preventDefault();
-      if (!isOwner) return;
-
-      const uid = adminUid.value.trim();
-      const email = adminEmail.value.trim().toLowerCase();
-      if (!uid || /[.#$/\[\]]/.test(uid)) {
-        adminListStatus.textContent = 'Enter a valid Firebase Authentication user UID.';
+    function renderUserSearchResults() {
+      adminSearchResults.replaceChildren();
+      const query = adminSearch.value.trim().toLowerCase();
+      if (!query) {
+        adminSearchStatus.textContent = 'Enter an email or username to find an account.';
+        return;
+      }
+      if (!userDirectoryLoaded) {
+        adminSearchStatus.textContent = 'Loading registered users...';
+        return;
+      }
+      if (adminListLoadFailed) {
+        adminSearchStatus.textContent = 'Could not load current admin access. Refresh before changing access.';
+        return;
+      }
+      if (!adminListLoaded) {
+        adminSearchStatus.textContent = 'Loading current admin access...';
         return;
       }
 
-      try {
-        await adminsRef.child(uid).set({ email, addedAt: Date.now() });
-        adminForm.reset();
-        adminListStatus.textContent = `Added ${email}. They must sign in with this verified email to use Admin Mode.`;
-      } catch (error) {
-        console.error('Could not add admin:', error);
-        adminListStatus.textContent = 'Could not add admin. Check the database rules and try again.';
+      const matches = userDirectory
+        .filter(user =>
+          (user.username && user.username.toLowerCase().includes(query)) ||
+          (user.email && user.email.toLowerCase().includes(query))
+        )
+        .sort((a, b) => (a.username || a.email).localeCompare(b.username || b.email))
+        .slice(0, 20);
+
+      if (matches.length === 0) {
+        adminSearchStatus.textContent = 'No registered users matched your search.';
+        return;
       }
-    });
+      adminSearchStatus.textContent = matches.length === 20
+        ? 'Showing the first 20 matches. Refine your search to narrow the results.'
+        : `${matches.length} matching ${matches.length === 1 ? 'user' : 'users'}.`;
+
+      matches.forEach(user => {
+        const item = document.createElement('li');
+        const detail = document.createElement('span');
+        detail.className = 'admin-user-detail';
+        detail.textContent = user.username
+          ? `${user.username} (${user.email || 'No email'})`
+          : user.email || 'Unnamed user';
+        const accessButton = document.createElement('button');
+        accessButton.type = 'button';
+        const isAdmin = adminUids.has(user.uid);
+        const isOwnerAccount = user.email.toLowerCase() === ownerEmail;
+        accessButton.textContent = isOwnerAccount
+          ? 'Owner account'
+          : isAdmin ? 'Revoke admin access' : 'Give admin access';
+        accessButton.setAttribute('aria-label', isOwnerAccount
+          ? 'Owner account already has owner access'
+          : `${isAdmin ? 'Revoke' : 'Give'} admin access ${isAdmin ? 'for' : 'to'} ${user.email || user.username}`);
+        accessButton.disabled = isOwnerAccount || !user.email;
+        accessButton.addEventListener('click', async () => {
+          if (!isOwner || !user.email || isOwnerAccount) return;
+          if (adminUids.has(user.uid)) {
+            if (!confirm(`Revoke admin access for ${user.email}?`)) return;
+          }
+
+          accessButton.disabled = true;
+          try {
+            if (adminUids.has(user.uid)) {
+              await adminsRef.child(user.uid).remove();
+              adminListStatus.textContent = `Revoked admin access for ${user.email}.`;
+            } else {
+              await adminsRef.child(user.uid).set({
+                email: user.email.toLowerCase(),
+                addedAt: Date.now()
+              });
+              adminListStatus.textContent = `Granted admin access to ${user.email}. They must sign in with this verified email to use Admin Mode.`;
+            }
+          } catch (error) {
+            console.error('Could not update admin access:', error);
+            adminListStatus.textContent = 'Could not update admin access. Check the database rules and try again.';
+            accessButton.disabled = false;
+          }
+        });
+        item.append(detail, accessButton);
+        adminSearchResults.appendChild(item);
+      });
+    }
+
+    adminSearch.addEventListener('input', renderUserSearchResults);
 
     auth.onAuthStateChanged(user => {
       const stateChangeId = ++authStateChangeId;
@@ -210,6 +287,29 @@
 
       ownerAccessMessage.textContent = '';
       setOwnerAccess(true);
+      if (!userDirectoryLoaded) {
+        try {
+          const usersSnapshot = await usersRef.once('value');
+          if (stateChangeId !== authStateChangeId) return;
+          userDirectory = [];
+          usersSnapshot.forEach(child => {
+            const profile = child.val();
+            if (profile && (profile.email || profile.username)) {
+              userDirectory.push({
+                uid: child.key,
+                email: typeof profile.email === 'string' ? profile.email.trim() : '',
+                username: typeof profile.username === 'string' ? profile.username.trim() : ''
+              });
+            }
+          });
+          userDirectoryLoaded = true;
+          renderUserSearchResults();
+        } catch (error) {
+          if (stateChangeId !== authStateChangeId) return;
+          console.error('Could not load registered users:', error);
+          adminSearchStatus.textContent = 'Could not load users. Check the database rules and try again.';
+        }
+      }
       if (!adminWorkspace.dataset.loaded) {
         adminWorkspace.dataset.loaded = 'true';
         adminWorkspace.src = '/GimkitWeb/admin/?embedded=1';
@@ -218,6 +318,8 @@
         adminListListenerAttached = true;
         adminsRef.on('value', renderAdmins, error => {
           console.error('Could not load admin list:', error);
+          adminListLoadFailed = true;
+          renderUserSearchResults();
           adminListStatus.textContent = 'Could not load admins. Check the database rules and try again.';
         });
       }
