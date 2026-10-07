@@ -250,7 +250,7 @@
       adminSearchResults.replaceChildren();
       const query = adminSearch.value.trim().toLowerCase();
       if (!query) {
-        adminSearchStatus.textContent = 'Enter an email or username to find an account.';
+        adminSearchStatus.textContent = 'Enter an email, username, or exact user UID to find an account.';
         return;
       }
       if (!userDirectoryLoaded) {
@@ -268,10 +268,16 @@
 
       const matches = userDirectory
         .filter(user =>
+          user.uid.toLowerCase() === query ||
           (user.username && user.username.toLowerCase().includes(query)) ||
           (user.email && user.email.toLowerCase().includes(query))
         )
-        .sort((a, b) => (a.username || a.email).localeCompare(b.username || b.email))
+        .sort((a, b) => {
+          const aExactUid = a.uid.toLowerCase() === query;
+          const bExactUid = b.uid.toLowerCase() === query;
+          if (aExactUid !== bExactUid) return aExactUid ? -1 : 1;
+          return (a.username || a.email).localeCompare(b.username || b.email);
+        })
         .slice(0, 20);
 
       if (matches.length === 0) {
