@@ -36,6 +36,7 @@
       ".indexOn": ["createdAt"]
     },
     "users": {
+      ".read": "auth != null && auth.token.email == 'jonathanlam0820@gmail.com' && auth.token.email_verified == true",
       "$uid": {
         ".write": "auth != null && auth.uid == $uid && auth.token.firebase.sign_in_provider != 'anonymous'"
       }
