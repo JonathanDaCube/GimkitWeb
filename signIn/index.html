@@ -39,7 +39,7 @@
     <div id="errorMsg" class="error" role="alert" aria-live="polite"></div>
   </form>
 
-  <p class="small">Don't have an account? <a href="/GimkitWeb/signUp/">Create one</a></p>
+  <p class="small">Don't have an account? <a id="createAccountLink" href="/GimkitWeb/signUp/">Create one</a></p>
 
   <!-- Extra UI shown when linking a new Google account to an email/password credential -->
   <div id="googleExtra" class="link-area" style="display:none;">
@@ -93,6 +93,27 @@
     const linkBtn = document.getElementById('linkBtn');
     const linkCancel = document.getElementById('linkCancel');
     const linkError = document.getElementById('linkError');
+    const defaultReturnTo = '/GimkitWeb/';
+    const returnTo = (() => {
+      const requested = new URLSearchParams(window.location.search).get('returnTo');
+      if (!requested) return defaultReturnTo;
+      try {
+        const target = new URL(requested, window.location.origin);
+        if (target.origin !== window.location.origin ||
+            !(target.pathname === '/GimkitWeb' || target.pathname.startsWith('/GimkitWeb/'))) {
+          return defaultReturnTo;
+        }
+        return target.pathname + target.search + target.hash;
+      } catch (error) {
+        return defaultReturnTo;
+      }
+    })();
+    document.getElementById('createAccountLink').href =
+      `/GimkitWeb/signUp/?returnTo=${encodeURIComponent(returnTo)}`;
+
+    function finishSignIn() {
+      window.location.href = returnTo;
+    }
 
     function showError(msg) { errorMsg.textContent = msg || ''; }
     function showLinkError(msg) { linkError.textContent = msg || ''; }
@@ -114,7 +135,7 @@
       auth.signInWithEmailAndPassword(email, password)
         .then(async userCredential => {
           await saveUserProfile(userCredential.user);
-          window.location.href = '/GimkitWeb/';
+          finishSignIn();
         })
         .catch(err => { console.error('Sign-in failed:', err); showError(err.message || 'Sign-in failed.'); });
     });
@@ -139,7 +160,7 @@
           } else {
             // Existing user, just redirect
             saveUserProfile(user)
-              .then(() => { window.location.href = '/GimkitWeb/'; })
+              .then(finishSignIn)
               .catch(err => {
                 console.error('Could not save user profile:', err);
                 showError(err.message || 'Could not save user profile.');
@@ -182,7 +203,7 @@
         .then(() => saveUserProfile(auth.currentUser))
         .then(() => {
           // Done — redirect to site
-          window.location.href = '/GimkitWeb/';
+          finishSignIn();
         })
         .catch(err => {
           console.error('Linking credential failed:', err);

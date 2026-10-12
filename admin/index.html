@@ -9,44 +9,24 @@
   <style>
     body { font-family: Arial, sans-serif; padding: 20px; }
     #authNav { display:flex; gap:8px; align-items:center; margin-bottom:12px; }
+    .auth-button { display:inline-block; padding:8px 12px; border-radius:6px; background:#007bff; color:#fff; text-decoration:none; }
     button { margin: 6px 8px 6px 0; }
     .small { font-size: 0.9rem; color: #555; }
     .section { background:#f8fafc; border-radius:8px; padding:12px; margin:12px 0; }
     ul { list-style:none; padding:0; }
     li { background:#fff; border:1px solid #e6eef6; padding:8px; margin:6px 0; display:flex; justify-content:space-between; align-items:center; }
-    #authForm { display:flex; gap:8px; align-items:center; }
-    #authForm input { padding:6px; border-radius:4px; border:1px solid #ccc; }
   </style>
 </head>
 <body>
   <div id="authNav">
     <div style="margin-left:auto; display:flex; gap:8px; align-items:center;">
       <span id="userInfo" class="small" aria-live="polite"></span>
-
-      <form id="authForm" onsubmit="return false;" style="margin:0;">
-        <input id="emailInput" type="email" placeholder="Email" required autocomplete="username" />
-        <input id="passwordInput" type="password" placeholder="Password" required autocomplete="current-password" />
-        <button id="signInBtn" type="button">Sign in</button>
-        <button id="googleSignInBtn" type="button">Sign in with Google</button>
-      </form>
-
+      <a id="signInLink" class="auth-button">Sign in</a>
+      <a id="signUpLink" class="auth-button">Sign up</a>
       <button id="signOutBtn" type="button" style="display:none;">Sign out</button>
     </div>
   </div>
-  <p id="accountCreateLink" class="small">Need an account? <a href="/GimkitWeb/signUp/">Create one</a>.</p>
-  <div id="googleExtra" class="section" hidden>
-    <h2>Finish setting up your account</h2>
-    <form id="googleSetupForm" onsubmit="return false;">
-      <p class="small">Choose a username and password to use with <span id="googleEmail"></span>.</p>
-      <input id="linkUsername" type="text" placeholder="Username" autocomplete="nickname" />
-      <input id="linkPassword" type="password" placeholder="Password" autocomplete="new-password" />
-      <input id="linkPasswordConfirm" type="password" placeholder="Confirm password" autocomplete="new-password" />
-      <button id="linkBtn" type="button">Complete account</button>
-      <button id="linkCancel" type="button">Cancel</button>
-    </form>
-    <p id="linkError" class="small" role="alert" aria-live="polite"></p>
-  </div>
-  <p id="adminAccessMessage" class="small" role="status" aria-live="polite">Sign in with the authorized Google account to access Admin Mode.</p>
+  <p id="adminAccessMessage" class="small" role="status" aria-live="polite">Sign in with an authorized account to access Admin Mode.</p>
 
   <main id="adminContent" hidden>
     <h1>Gimkit Community — Admin Controls</h1>
@@ -115,21 +95,10 @@
     const newsRef = db.ref('news');
 
     // --- Auth UI ---
-    const signInBtn = document.getElementById('signInBtn');
-    const googleSignInBtn = document.getElementById('googleSignInBtn');
+    const signInLink = document.getElementById('signInLink');
+    const signUpLink = document.getElementById('signUpLink');
     const signOutBtn = document.getElementById('signOutBtn');
     const userInfo = document.getElementById('userInfo');
-    const emailInput = document.getElementById('emailInput');
-    const passwordInput = document.getElementById('passwordInput');
-    const googleExtra = document.getElementById('googleExtra');
-    const googleEmail = document.getElementById('googleEmail');
-    const linkUsername = document.getElementById('linkUsername');
-    const linkPassword = document.getElementById('linkPassword');
-    const linkPasswordConfirm = document.getElementById('linkPasswordConfirm');
-    const linkBtn = document.getElementById('linkBtn');
-    const linkCancel = document.getElementById('linkCancel');
-    const linkError = document.getElementById('linkError');
-    const accountCreateLink = document.getElementById('accountCreateLink');
     const adminContent = document.getElementById('adminContent');
     const adminAccessMessage = document.getElementById('adminAccessMessage');
     const newsForm = document.getElementById('newsForm');
@@ -163,97 +132,14 @@
       return usersRef.child(user.uid).update(profile);
     }
 
-    function signInWithEmail() {
-      const email = emailInput.value.trim();
-      const password = passwordInput.value;
-      if (!email || !password) { alert('Please enter email and password'); return; }
-      auth.signInWithEmailAndPassword(email, password)
-        .then((userCredential) => {
-          console.log('Signed in:', userCredential.user.email);
-        })
-        .catch((err) => {
-          console.error('Sign-in failed:', err);
-          alert('Sign-in failed: ' + err.message);
-        });
-    }
-
-    function signInWithGoogle() {
-      const provider = new firebase.auth.GoogleAuthProvider();
-      auth.signInWithPopup(provider)
-        .then(result => {
-          if (!result.additionalUserInfo || !result.additionalUserInfo.isNewUser) return;
-          googleEmail.textContent = result.user.email || '';
-          linkUsername.value = result.user.displayName || '';
-          linkPassword.value = '';
-          linkPasswordConfirm.value = '';
-          linkError.textContent = '';
-          googleExtra.hidden = false;
-        })
-        .catch(error => {
-          console.error('Google sign-in failed:', error);
-          adminAccessMessage.textContent = error.message || 'Google sign-in failed.';
-        });
-    }
-
-    linkCancel.addEventListener('click', () => {
-      googleExtra.hidden = true;
-      linkError.textContent = '';
-      if (auth.currentUser) {
-        auth.signOut().catch(error => console.error('Sign-out after account setup cancellation failed:', error));
-      }
-    });
-
-    linkBtn.addEventListener('click', async () => {
-      const username = linkUsername.value.trim();
-      const password = linkPassword.value;
-      const passwordConfirm = linkPasswordConfirm.value;
-      const email = googleEmail.textContent.trim();
-      if (!username || !password) {
-        linkError.textContent = 'Enter a username and password.';
-        return;
-      }
-      if (password !== passwordConfirm) {
-        linkError.textContent = 'Passwords do not match.';
-        return;
-      }
-      if (!auth.currentUser) {
-        linkError.textContent = 'No authenticated user. Please sign in with Google again.';
-        return;
-      }
-
-      linkBtn.disabled = true;
-      linkError.textContent = '';
-      try {
-        const user = auth.currentUser;
-        const alreadyLinked = user.providerData.some(provider => provider.providerId === 'password');
-        const linkedUser = alreadyLinked
-          ? user
-          : (await user.linkWithCredential(
-            firebase.auth.EmailAuthProvider.credential(email, password)
-          )).user;
-        await linkedUser.updateProfile({ displayName: username });
-        await db.ref(`users/${linkedUser.uid}`).set({
-          username,
-          email: email.toLowerCase(),
-          createdAt: Date.now()
-        });
-        window.location.reload();
-      } catch (error) {
-        console.error('Google account setup failed:', error);
-        linkError.textContent = error.code === 'auth/email-already-in-use'
-          ? 'That email is already in use with another account. Try signing in with email and password.'
-          : error.message || 'Could not complete account setup.';
-        linkBtn.disabled = false;
-      }
-    });
-
     function signOut() {
       auth.signOut().catch(err => console.error('Sign-out failed:', err));
     }
 
-    signInBtn.addEventListener('click', signInWithEmail);
-    googleSignInBtn.addEventListener('click', signInWithGoogle);
     signOutBtn.addEventListener('click', signOut);
+    const returnTo = window.location.pathname + window.location.search + window.location.hash;
+    signInLink.href = `/GimkitWeb/signIn/?returnTo=${encodeURIComponent(returnTo)}`;
+    signUpLink.href = `/GimkitWeb/signUp/?returnTo=${encodeURIComponent(returnTo)}`;
 
     const adminActiveGames = document.getElementById('adminActiveGames');
     const adminActiveMeetings = document.getElementById('adminActiveMeetings');
@@ -474,23 +360,17 @@
 
       if (!user) {
         userInfo.textContent = '';
-        adminAccessMessage.textContent = 'Sign in with the authorized Google account to access Admin Mode.';
-        signInBtn.style.display = '';
-        googleSignInBtn.style.display = '';
+        adminAccessMessage.textContent = 'Sign in with an authorized account to access Admin Mode.';
+        signInLink.style.display = '';
+        signUpLink.style.display = '';
         signOutBtn.style.display = 'none';
-        emailInput.style.display = '';
-        passwordInput.style.display = '';
-        accountCreateLink.style.display = '';
         return;
       }
 
       const name = user.displayName || user.email || 'Signed in user';
       userInfo.textContent = 'Signed in as ' + name;
-      signInBtn.style.display = 'none';
-      googleSignInBtn.style.display = 'none';
-      emailInput.style.display = 'none';
-      passwordInput.style.display = 'none';
-      accountCreateLink.style.display = 'none';
+      signInLink.style.display = 'none';
+      signUpLink.style.display = 'none';
       signOutBtn.style.display = '';
 
       if (!isAdmin) {
