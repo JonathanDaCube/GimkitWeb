@@ -9,7 +9,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 </head>
 <body>
-  <a href="/GimkitWeb/">← Back to site</a>
+  <a id="backLink" href="/GimkitWeb/">← Back to site</a>
   <h1>Create account</h1>
 
   <form id="signUpForm" onsubmit="return false;">
@@ -34,6 +34,26 @@
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.database();
+    const defaultReturnTo = "/GimkitWeb/";
+    const returnTo = (() => {
+      const requested = new URLSearchParams(window.location.search).get("returnTo");
+      if (!requested) return defaultReturnTo;
+      try {
+        const target = new URL(requested, window.location.origin);
+        if (target.origin !== window.location.origin ||
+            !(target.pathname === "/GimkitWeb" || target.pathname.startsWith("/GimkitWeb/"))) {
+          return defaultReturnTo;
+        }
+        return target.pathname + target.search + target.hash;
+      } catch (error) {
+        return defaultReturnTo;
+      }
+    })();
+    document.getElementById("backLink").href = returnTo;
+
+    function finishSignUp() {
+      window.location.href = returnTo;
+    }
 
     function saveUserProfile(user, username, createdAt) {
       const profile = { updatedAt: Date.now() };
@@ -54,14 +74,14 @@
           const user = userCredential.user;
           await user.updateProfile({ displayName: username });
           await saveUserProfile(user, username, Date.now());
-          window.location.href = "/GimkitWeb/";
+          finishSignUp();
         })
         .catch((err) => {
           if (err.code === "auth/email-already-in-use") {
             auth.signInWithEmailAndPassword(email, password)
               .then(async userCredential => {
                 await saveUserProfile(userCredential.user);
-                window.location.href = "/GimkitWeb/";
+                finishSignUp();
               })
               .catch(signErr => alert(signErr.message));
           } else {
