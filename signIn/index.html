@@ -198,7 +198,17 @@
     });
 
     // Helpful debug logging on auth state changes
-    auth.onAuthStateChanged(user => console.log('onAuthStateChanged', user));
+    auth.onAuthStateChanged(async user => {
+      if (user && !user.isAnonymous) {
+        try {
+          await saveUserProfile(user);
+        } catch (error) {
+          console.error('Could not save signed-in user profile:', error);
+          showError('Signed in, but your user profile could not be saved.');
+        }
+      }
+      console.log('onAuthStateChanged', user);
+    });
     auth.onIdTokenChanged(user => console.log('onIdTokenChanged', user));
   </script>
 </body>

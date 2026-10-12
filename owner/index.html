@@ -178,6 +178,13 @@
       setDataAccess(allowed);
     }
 
+    function saveUserProfile(user) {
+      const profile = { updatedAt: Date.now() };
+      if (user.displayName) profile.username = user.displayName;
+      if (user.email) profile.email = user.email.toLowerCase();
+      return usersRef.child(user.uid).update(profile);
+    }
+
     ownerEmailSignIn.addEventListener('click', () => {
       auth.signInWithEmailAndPassword(ownerLoginEmail.value.trim(), ownerLoginPassword.value)
         .catch(error => {
@@ -600,6 +607,17 @@
     auth.onAuthStateChanged(async user => {
       const stateChangeId = ++authStateChangeId;
       setOwnerAccess(false);
+      if (user && !user.isAnonymous) {
+        try {
+          await saveUserProfile(user);
+        } catch (error) {
+          console.error('Could not save signed-in user profile:', error);
+          if (stateChangeId === authStateChangeId) {
+            ownerAccessMessage.textContent = 'Signed in, but your user profile could not be saved.';
+          }
+        }
+      }
+      if (stateChangeId !== authStateChangeId) return;
       if (!user) {
         ownerUserInfo.textContent = '';
         ownerLoginEmail.style.display = '';
