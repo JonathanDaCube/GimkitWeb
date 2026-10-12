@@ -104,6 +104,7 @@
   const activeMeetingsRef = db.ref('activeMeetings');
   const scheduledMeetingsRef = db.ref('scheduledMeetings');
   const newsRef = db.ref('news');
+  const usersRef = db.ref('users');
 
   // --- Authentication UI (links to dedicated pages) ---
   const signInLink = document.getElementById('signInLink');
@@ -133,6 +134,13 @@
     auth.signOut().catch(err => console.error('Sign-out failed:', err));
   }
 
+  function saveUserProfile(user) {
+    const profile = { updatedAt: Date.now() };
+    if (user.displayName) profile.username = user.displayName;
+    if (user.email) profile.email = user.email.toLowerCase();
+    return usersRef.child(user.uid).update(profile);
+  }
+
   // --- Elements ---
   const gameForm = document.getElementById('gameForm');
   const gameCodeInput = document.getElementById('gameCodeInput');
@@ -159,6 +167,14 @@
       setWriteAccess(false, false);
       auth.signOut().catch(err => console.error('Could not sign out old anonymous session:', err));
       return;
+    }
+    if (user) {
+      try {
+        await saveUserProfile(user);
+      } catch (error) {
+        console.error('Could not save signed-in user profile:', error);
+      }
+      if (stateChangeId !== authStateChangeId) return;
     }
     const isSignedIn = Boolean(user);
     const isOwner = Boolean(

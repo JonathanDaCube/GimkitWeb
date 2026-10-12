@@ -106,6 +106,7 @@
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.database();
+    const usersRef = db.ref('users');
     auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
       .catch(error => console.warn('Could not set authentication persistence:', error));
     const activeGamesRef = db.ref('activeGames');
@@ -153,6 +154,13 @@
       newsForm.querySelectorAll('input, textarea').forEach(field => {
         field.disabled = !allowed;
       });
+    }
+
+    function saveUserProfile(user) {
+      const profile = { updatedAt: Date.now() };
+      if (user.displayName) profile.username = user.displayName;
+      if (user.email) profile.email = user.email.toLowerCase();
+      return usersRef.child(user.uid).update(profile);
     }
 
     function signInWithEmail() {
@@ -430,6 +438,17 @@
     auth.onAuthStateChanged(async user => {
       const stateChangeId = ++authStateChangeId;
       setDataAccess(false);
+      if (user && !user.isAnonymous) {
+        try {
+          await saveUserProfile(user);
+        } catch (error) {
+          console.error('Could not save signed-in user profile:', error);
+          if (stateChangeId === authStateChangeId) {
+            adminAccessMessage.textContent = 'Signed in, but your user profile could not be saved.';
+          }
+        }
+      }
+      if (stateChangeId !== authStateChangeId) return;
       const isOwner = Boolean(
         user &&
         !user.isAnonymous &&

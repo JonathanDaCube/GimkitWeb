@@ -35,26 +35,34 @@
     const auth = firebase.auth();
     const db = firebase.database();
 
+    function saveUserProfile(user, username, createdAt) {
+      const profile = { updatedAt: Date.now() };
+      const displayName = username || user.displayName;
+      if (displayName) profile.username = displayName;
+      if (user.email) profile.email = user.email.toLowerCase();
+      if (createdAt) profile.createdAt = createdAt;
+      return db.ref("users/" + user.uid).update(profile);
+    }
+
     document.getElementById("signUpBtn").addEventListener("click", () => {
       const username = document.getElementById("username").value.trim();
       const email = document.getElementById("email").value.trim();
       const password = document.getElementById("password").value;
 
       auth.createUserWithEmailAndPassword(email, password)
-        .then((userCredential) => {
+        .then(async (userCredential) => {
           const user = userCredential.user;
-          user.updateProfile({ displayName: username });
-          db.ref("users/" + user.uid).set({
-            username: username,
-            email: email,
-            createdAt: Date.now()
-          });
+          await user.updateProfile({ displayName: username });
+          await saveUserProfile(user, username, Date.now());
           window.location.href = "/GimkitWeb/";
         })
         .catch((err) => {
           if (err.code === "auth/email-already-in-use") {
             auth.signInWithEmailAndPassword(email, password)
-              .then(() => window.location.href = "/GimkitWeb/")
+              .then(async userCredential => {
+                await saveUserProfile(userCredential.user);
+                window.location.href = "/GimkitWeb/";
+              })
               .catch(signErr => alert(signErr.message));
           } else {
             alert(err.message);
