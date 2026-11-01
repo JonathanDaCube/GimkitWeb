@@ -71,6 +71,12 @@
       <ul id="adminScheduled"></ul>
     </section>
 
+    <section class="section" data-score-review hidden>
+      <h3>Score submissions</h3>
+      <p class="small" data-score-review-status role="status" aria-live="polite">Loading submissions…</p>
+      <ul data-score-review-list></ul>
+    </section>
+
     <section class="section" aria-labelledby="newsHeading">
       <h3 id="newsHeading">News</h3>
       <form id="newsForm">
@@ -587,5 +593,6 @@
       ownerAccessMessage.textContent = 'Could not verify Owner Mode access. Please refresh and try again.';
     });
   </script>
+  <script src="/GimkitWeb/scoreboard.js"></script>
 </body>
 </html>

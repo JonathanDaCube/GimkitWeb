@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Scoreboard — Gimkit Community</title>
+  <link rel="stylesheet" href="/GimkitWeb/site-nav.css" />
+  <script src="/GimkitWeb/site-nav.js" defer></script>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    .score-section { border:1px solid #ddd; border-radius:8px; padding:16px; margin:16px 0; }
+    .score-section form { display:flex; flex-wrap:wrap; gap:8px; align-items:end; }
+    .score-section label { display:flex; flex-direction:column; gap:4px; }
+    #scoreboardList, #myScoreSubmissions, [data-score-review-list] { padding-left:24px; }
+    #scoreboardList li, #myScoreSubmissions li, [data-score-review-list] li { margin:8px 0; }
+    .small { color:#555; font-size:.9rem; }
+    #scoreAuthNav { display:flex; justify-content:flex-end; align-items:center; gap:8px; }
+    .auth-button { display:inline-block; padding:8px 12px; border-radius:6px; background:#007bff; color:#fff; text-decoration:none; }
+  </style>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+</head>
+<body>
+  <div id="scoreAuthNav">
+    <span id="scoreUserInfo" class="small" aria-live="polite"></span>
+    <a id="scoreSignInLink" class="auth-button" href="/GimkitWeb/signIn/">Sign in</a>
+    <a id="scoreSignUpLink" class="auth-button" href="/GimkitWeb/signUp/">Sign up</a>
+    <button id="scoreSignOut" type="button" hidden>Sign out</button>
+  </div>
+  <main>
+    <h1>Community Scoreboard</h1>
+    <p class="small">Lifetime totals combine approved scores from individual games. Submissions appear after review by an admin or the site owner.</p>
+
+    <section class="score-section" aria-labelledby="scoreboardHeading">
+      <h2 id="scoreboardHeading">Leaderboard</h2>
+      <ol id="scoreboardList" aria-live="polite"><li>Loading scoreboard…</li></ol>
+    </section>
+
+    <section class="score-section" aria-labelledby="submitScoreHeading">
+      <h2 id="submitScoreHeading">Submit a game score</h2>
+      <p id="scoreSubmissionAccess" class="small" role="status" aria-live="polite">Sign in with a verified account to submit a score.</p>
+      <form id="scoreSubmissionForm" hidden>
+        <label for="scoreGameInput">Game name or code
+          <input id="scoreGameInput" type="text" maxlength="80" required />
+        </label>
+        <label for="scoreValueInput">Score
+          <input id="scoreValueInput" type="number" min="0" max="1000000000" step="any" required />
+        </label>
+        <button id="scoreSubmitButton" type="submit">Submit for review</button>
+      </form>
+      <p id="scoreSubmissionStatus" class="small" role="status" aria-live="polite"></p>
+    </section>
+
+    <section class="score-section" aria-labelledby="mySubmissionsHeading">
+      <h2 id="mySubmissionsHeading">My submissions</h2>
+      <ul id="myScoreSubmissions" aria-live="polite"><li>Sign in with a verified account to view your submissions.</li></ul>
+    </section>
+  </main>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDq6eOzOWLd88XG-wFo0LN1O3l2Yyvdfls",
+      authDomain: "gimkit-web.firebaseapp.com",
+      databaseURL: "https://gimkit-web-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "gimkit-web",
+      storageBucket: "gimkit-web.firebasestorage.app",
+      messagingSenderId: "192282058649",
+      appId: "1:192282058649:web:cdcdfdb49c429fc0e33d08",
+      measurementId: "G-TLCCKP056J"
+    };
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+      .catch(error => console.warn('Could not set authentication persistence:', error));
+  </script>
+  <script src="/GimkitWeb/scoreboard.js"></script>
+</body>
+</html>
