@@ -14,6 +14,8 @@
     #activeGamesList, #activeMeetingsList, #scheduledMeetingsList { list-style: none; padding: 0; margin-top: 12px; }
     #activeGamesList li, #activeMeetingsList li, #scheduledMeetingsList li { background: #f3f4f6; border-radius: 6px; padding: 8px 12px; margin: 6px 0; display:flex; justify-content:space-between; }
     #newsSummary { border:1px solid #ddd; border-radius:8px; padding:12px; margin-top:16px; }
+    #homeScoreboard { border:1px solid #ddd; border-radius:8px; padding:12px; margin-top:16px; }
+    #homeScoreboardList { padding-left:24px; }
     button { margin-left: 8px; }
     .small { font-size: 0.9rem; color: #555; }
     a.button-like { padding:6px 10px; background:#007bff; color:white; border-radius:4px; text-decoration:none; }
@@ -43,6 +45,11 @@
   <p id="latestNewsTitle" class="small" aria-live="polite">Loading news…</p>
   <p id="latestNewsSummary"></p>
   <a href="/GimkitWeb/news/">View all news</a>
+</section>
+<section id="homeScoreboard" aria-labelledby="homeScoreboardHeading">
+  <h2 id="homeScoreboardHeading">Top players</h2>
+  <ol id="homeScoreboardList" aria-live="polite"><li>Loading scoreboard…</li></ol>
+  <a href="/GimkitWeb/scoreboard/">View the full scoreboard and submit a score</a>
 </section>
 <p id="writeAccessNotice" class="small" role="status" hidden>Sign in to add games and meetings. Only the site administrator can remove or activate entries.</p>
 
@@ -407,6 +414,7 @@
     });
   });
 </script>
+<script src="/GimkitWeb/scoreboard.js"></script>
 
 <p class="small" style="margin-top: 30px; text-align: center;">Made by JonathanDaCube • More Features Coming Soon</p>
 
