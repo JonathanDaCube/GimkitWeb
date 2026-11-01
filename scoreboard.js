@@ -7,13 +7,19 @@
   const scoreSubmissionForm = document.getElementById('scoreSubmissionForm');
   const reviewSections = Array.from(document.querySelectorAll('[data-score-review]'));
   const ownerEmail = 'jonathanlam0820@gmail.com';
+  const gameModes = ['Fishtopia', 'Capture the Flag', 'Tag', 'Knockback', 'Snowbrawl'];
   const numberFormat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 20 });
+
+  function isAllowedGame(game) {
+    return gameModes.includes(game);
+  }
 
   function isValidScoreRecord(record) {
     return record &&
+      record.status === 'approved' &&
       typeof record.uid === 'string' &&
       typeof record.username === 'string' &&
-      typeof record.game === 'string' &&
+      isAllowedGame(record.game) &&
       typeof record.score === 'number' &&
       Number.isFinite(record.score) &&
       record.score >= 0;
@@ -27,26 +33,21 @@
       const player = players.get(record.uid) || {
         uid: record.uid,
         username: record.username || 'Player',
-        total: 0,
-        games: 0,
-        latestAt: 0,
-        records: []
+        modeScores: Object.fromEntries(gameModes.map(game => [game, 0])),
+        latestAt: 0
       };
-      player.total += record.score;
-      player.games += 1;
-      player.records.push({
-        game: record.game,
-        score: record.score,
-        submittedAt: record.approvedAt || record.submittedAt || 0
-      });
+      if (record.score > player.modeScores[record.game]) {
+        player.modeScores[record.game] = record.score;
+      }
       if ((record.approvedAt || record.submittedAt || 0) >= player.latestAt) {
         player.username = record.username || 'Player';
         player.latestAt = record.approvedAt || record.submittedAt || 0;
       }
+      player.total = gameModes.reduce((total, game) => total + player.modeScores[game], 0) / gameModes.length;
       players.set(record.uid, player);
     });
     return Array.from(players.values()).sort((a, b) =>
-      b.total - a.total || b.games - a.games || a.username.localeCompare(b.username)
+      b.total - a.total || a.username.localeCompare(b.username)
     );
   }
 
@@ -62,14 +63,13 @@
     }
     entries.forEach((player, index) => {
       const item = document.createElement('li');
-      item.textContent = `${index + 1}. ${player.username} — ${numberFormat.format(player.total)} points (${numberFormat.format(player.games)} ${player.games === 1 ? 'game' : 'games'})`;
+      item.textContent = `${index + 1}. ${player.username} — Total: ${numberFormat.format(player.total)} points`;
       if (typeof limit !== 'number') {
         const details = document.createElement('ul');
         details.className = 'score-details';
-        player.records.sort((a, b) => b.submittedAt - a.submittedAt).forEach(record => {
+        gameModes.forEach(game => {
           const detail = document.createElement('li');
-          const date = record.submittedAt ? ` — ${new Date(record.submittedAt).toLocaleDateString()}` : '';
-          detail.textContent = `${record.game}: ${numberFormat.format(record.score)} points${date}`;
+          detail.textContent = `${game}: ${numberFormat.format(player.modeScores[game])} points`;
           details.appendChild(detail);
         });
         item.appendChild(details);
@@ -180,9 +180,9 @@
       }
       const game = scoreGameInput.value.trim();
       const score = Number(scoreValueInput.value);
-      if (!game || game.length > 80 || scoreValueInput.value.trim() === '' ||
+      if (!isAllowedGame(game) || scoreValueInput.value.trim() === '' ||
           !Number.isFinite(score) || score < 0 || score > 1000000000) {
-        scoreSubmissionStatus.textContent = 'Enter a game name or code and a score from 0 to 1,000,000,000.';
+        scoreSubmissionStatus.textContent = 'Select one of the five game modes and enter a score from 0 to 1,000,000,000.';
         return;
       }
 
@@ -258,11 +258,16 @@
       const approveButton = document.createElement('button');
       approveButton.type = 'button';
       approveButton.textContent = 'Approve';
+      approveButton.disabled = !isAllowedGame(submission.game);
+      if (!isAllowedGame(submission.game)) {
+        details.textContent += ' — unsupported game mode; reject this submission';
+      }
       const rejectButton = document.createElement('button');
       rejectButton.type = 'button';
       rejectButton.textContent = 'Reject';
 
       approveButton.addEventListener('click', async () => {
+        if (!isAllowedGame(submission.game)) return;
         approveButton.disabled = true;
         rejectButton.disabled = true;
         const approvedAt = Date.now();

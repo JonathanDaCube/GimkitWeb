@@ -30,7 +30,7 @@
   </div>
   <main>
     <h1>Community Scoreboard</h1>
-    <p class="small">Lifetime totals combine approved scores from individual games. Submissions appear after review by an admin or the site owner.</p>
+    <p class="small">Your total is the average of your highest approved score in each of the five game modes; modes without an approved score count as zero. Submissions appear after review by an admin or the site owner.</p>
 
     <section class="score-section" aria-labelledby="scoreboardHeading">
       <h2 id="scoreboardHeading">Leaderboard</h2>
@@ -38,11 +38,18 @@
     </section>
 
     <section class="score-section" aria-labelledby="submitScoreHeading">
-      <h2 id="submitScoreHeading">Submit a game score</h2>
+      <h2 id="submitScoreHeading">Submit a game mode score</h2>
       <p id="scoreSubmissionAccess" class="small" role="status" aria-live="polite">Sign in with a verified account to submit a score.</p>
       <form id="scoreSubmissionForm" hidden>
-        <label for="scoreGameInput">Game name or code
-          <input id="scoreGameInput" type="text" maxlength="80" required />
+        <label for="scoreGameInput">Game mode
+          <select id="scoreGameInput" required>
+            <option value="">Select a game mode</option>
+            <option value="Fishtopia">Fishtopia</option>
+            <option value="Capture the Flag">Capture the Flag</option>
+            <option value="Tag">Tag</option>
+            <option value="Knockback">Knockback</option>
+            <option value="Snowbrawl">Snowbrawl</option>
+          </select>
         </label>
         <label for="scoreValueInput">Score
           <input id="scoreValueInput" type="number" min="0" max="1000000000" step="any" required />
