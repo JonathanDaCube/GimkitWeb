@@ -12,8 +12,10 @@
     .score-section { border:1px solid #ddd; border-radius:8px; padding:16px; margin:16px 0; }
     .score-section form { display:flex; flex-wrap:wrap; gap:8px; align-items:end; }
     .score-section label { display:flex; flex-direction:column; gap:4px; }
-    #scoreboardList, #myScoreSubmissions, [data-score-review-list] { padding-left:24px; }
-    #scoreboardList li, #myScoreSubmissions li, [data-score-review-list] li { margin:8px 0; }
+    .leaderboard-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; }
+    .leaderboard-list { margin:0; padding-left:24px; }
+    .leaderboard-list li, #myScoreSubmissions li, [data-score-review-list] li { margin:8px 0; }
+    .leaderboard-mode { border:1px solid #e5e7eb; border-radius:6px; padding:12px; }
     .small { color:#555; font-size:.9rem; }
     #scoreAuthNav { display:flex; justify-content:flex-end; align-items:center; gap:8px; }
     .auth-button { display:inline-block; padding:8px 12px; border-radius:6px; background:#007bff; color:#fff; text-decoration:none; }
@@ -32,11 +34,36 @@
   </div>
   <main>
     <h1>Community Scoreboard</h1>
-    <p class="small">Your total is the average of your highest approved score in each of the five game modes; modes without an approved score count as zero. Submissions appear after review by an admin or the site owner.</p>
+    <p class="small">The total leaderboard ranks the average of your highest approved score in each of the five game modes; modes without an approved score count as zero. Each mode also has its own leaderboard. Submissions appear after review by an admin or the site owner.</p>
 
     <section class="score-section" aria-labelledby="scoreboardHeading">
       <h2 id="scoreboardHeading">Leaderboard</h2>
-      <ol id="scoreboardList" aria-live="polite"><li>Loading scoreboard…</li></ol>
+      <div class="leaderboard-grid">
+        <section class="leaderboard-mode" aria-labelledby="totalLeaderboardHeading">
+          <h3 id="totalLeaderboardHeading">Total score</h3>
+          <ol id="scoreboardTotalList" class="leaderboard-list" aria-live="polite"><li>Loading scoreboard…</li></ol>
+        </section>
+        <section class="leaderboard-mode" aria-labelledby="fishtopiaLeaderboardHeading">
+          <h3 id="fishtopiaLeaderboardHeading">Fishtopia</h3>
+          <ol id="scoreboardFishtopiaList" class="leaderboard-list" aria-live="polite"><li>Loading scoreboard…</li></ol>
+        </section>
+        <section class="leaderboard-mode" aria-labelledby="captureTheFlagLeaderboardHeading">
+          <h3 id="captureTheFlagLeaderboardHeading">Capture the Flag</h3>
+          <ol id="scoreboardCapturetheFlagList" class="leaderboard-list" aria-live="polite"><li>Loading scoreboard…</li></ol>
+        </section>
+        <section class="leaderboard-mode" aria-labelledby="tagLeaderboardHeading">
+          <h3 id="tagLeaderboardHeading">Tag</h3>
+          <ol id="scoreboardTagList" class="leaderboard-list" aria-live="polite"><li>Loading scoreboard…</li></ol>
+        </section>
+        <section class="leaderboard-mode" aria-labelledby="knockbackLeaderboardHeading">
+          <h3 id="knockbackLeaderboardHeading">Knockback</h3>
+          <ol id="scoreboardKnockbackList" class="leaderboard-list" aria-live="polite"><li>Loading scoreboard…</li></ol>
+        </section>
+        <section class="leaderboard-mode" aria-labelledby="snowbrawlLeaderboardHeading">
+          <h3 id="snowbrawlLeaderboardHeading">Snowbrawl</h3>
+          <ol id="scoreboardSnowbrawlList" class="leaderboard-list" aria-live="polite"><li>Loading scoreboard…</li></ol>
+        </section>
+      </div>
     </section>
 
     <section class="score-section" aria-labelledby="submitScoreHeading">
