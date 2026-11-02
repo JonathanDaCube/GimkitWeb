@@ -78,24 +78,14 @@
 
   function renderPublicScoreboard(snapshot) {
     const players = aggregateScores(snapshot);
+    latestPlayers = players;
+    renderSkillChart();
     renderLeaderboard(document.getElementById('homeScoreboardList'), players, null, 5);
     renderLeaderboard(document.getElementById('scoreboardTotalList'), players, null);
     gameModes.forEach(game => {
       renderLeaderboard(document.getElementById(`scoreboard${game.replaceAll(' ', '')}List`), players, game);
     });
   }
-
-  approvedScoresRef.on('value', renderPublicScoreboard, error => {
-    console.error('Could not load approved scores:', error);
-    ['homeScoreboardList', 'scoreboardTotalList', ...gameModes.map(game => `scoreboard${game.replaceAll(' ', '')}List`)].forEach(id => {
-      const container = document.getElementById(id);
-      if (!container) return;
-      container.replaceChildren();
-      const message = document.createElement('li');
-      message.textContent = 'The scoreboard is temporarily unavailable.';
-      container.appendChild(message);
-    });
-  });
 
   const scoreUserInfo = document.getElementById('scoreUserInfo');
   const scoreSignInLink = document.getElementById('scoreSignInLink');
@@ -107,8 +97,101 @@
   const scoreGameInput = document.getElementById('scoreGameInput');
   const scoreValueInput = document.getElementById('scoreValueInput');
   const scoreSubmitButton = document.getElementById('scoreSubmitButton');
+  const skillRadar = document.getElementById('skillRadar');
+  const skillRadarGrid = document.getElementById('skillRadarGrid');
+  const skillArea = document.getElementById('skillArea');
+  const skillTotalValue = document.getElementById('skillTotalValue');
+  const skillChartStatus = document.getElementById('skillChartStatus');
+  const skillModeValues = document.getElementById('skillModeValues');
   let activeUserUid = null;
   let authStateChangeId = 0;
+  let skillUserUid = null;
+  let latestPlayers = [];
+
+  initializeSkillRadar();
+
+  approvedScoresRef.on('value', renderPublicScoreboard, error => {
+    console.error('Could not load approved scores:', error);
+    ['homeScoreboardList', 'scoreboardTotalList', ...gameModes.map(game => `scoreboard${game.replaceAll(' ', '')}List`)].forEach(id => {
+      const container = document.getElementById(id);
+      if (!container) return;
+      container.replaceChildren();
+      const message = document.createElement('li');
+      message.textContent = 'The scoreboard is temporarily unavailable.';
+      container.appendChild(message);
+    });
+    if (skillChartStatus) skillChartStatus.textContent = 'The skill chart is temporarily unavailable.';
+    if (skillRadar) skillRadar.hidden = true;
+  });
+
+  function skillChartPoint(value, index, radius) {
+    const angle = -Math.PI / 2 + (2 * Math.PI * index) / gameModes.length;
+    const distance = radius * value / 100;
+    return `${180 + Math.cos(angle) * distance},${155 + Math.sin(angle) * distance}`;
+  }
+
+  function initializeSkillRadar() {
+    if (!skillRadarGrid) return;
+    skillRadarGrid.replaceChildren();
+    [20, 40, 60, 80, 100].forEach(level => {
+      const grid = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+      grid.setAttribute('class', 'skill-grid');
+      grid.setAttribute('points', gameModes.map((_, index) => skillChartPoint(level, index, 90)).join(' '));
+      skillRadarGrid.appendChild(grid);
+    });
+    gameModes.forEach((game, index) => {
+      const axis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      const endpoint = skillChartPoint(100, index, 90).split(',').map(Number);
+      axis.setAttribute('class', 'skill-axis');
+      axis.setAttribute('x1', '180');
+      axis.setAttribute('y1', '155');
+      axis.setAttribute('x2', String(endpoint[0]));
+      axis.setAttribute('y2', String(endpoint[1]));
+      skillRadarGrid.appendChild(axis);
+
+      const angle = -Math.PI / 2 + (2 * Math.PI * index) / gameModes.length;
+      const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      label.setAttribute('class', 'skill-label');
+      label.setAttribute('x', String(180 + Math.cos(angle) * 112));
+      label.setAttribute('y', String(155 + Math.sin(angle) * 112 + 4));
+      label.setAttribute('text-anchor', Math.cos(angle) < -0.25 ? 'end' : Math.cos(angle) > 0.25 ? 'start' : 'middle');
+      label.textContent = game;
+      skillRadarGrid.appendChild(label);
+    });
+  }
+
+  function renderSkillChart() {
+    if (!skillRadar || !skillChartStatus || !skillArea || !skillTotalValue || !skillModeValues) return;
+    if (!skillUserUid) {
+      skillRadar.hidden = true;
+      skillModeValues.replaceChildren();
+      skillChartStatus.textContent = 'Sign in to see your skill chart.';
+      return;
+    }
+
+    const player = latestPlayers.find(entry => entry.uid === skillUserUid);
+    const modeScores = player ? player.modeScores : Object.fromEntries(gameModes.map(game => [game, 0]));
+    const modeBestScores = Object.fromEntries(gameModes.map(game => [
+      game,
+      latestPlayers.reduce((best, entry) => Math.max(best, entry.modeScores[game]), 0)
+    ]));
+    const normalizedScores = gameModes.map(game => {
+      const best = modeBestScores[game];
+      return best > 0 ? Math.min(100, (modeScores[game] / best) * 100) : 0;
+    });
+    const totalSkill = normalizedScores.reduce((total, score) => total + score, 0) / gameModes.length;
+
+    skillArea.setAttribute('points', normalizedScores.map((score, index) => skillChartPoint(score, index, 90)).join(' '));
+    skillTotalValue.textContent = String(Math.round(totalSkill));
+    skillRadar.hidden = false;
+    skillChartStatus.textContent = 'Your scores are normalized against the highest approved score in each mode.';
+    skillModeValues.replaceChildren();
+    gameModes.forEach((game, index) => {
+      const item = document.createElement('li');
+      item.textContent = `${game}: ${Math.round(normalizedScores[index])}/100`;
+      skillModeValues.appendChild(item);
+    });
+  }
 
   function renderMySubmissions(snapshot) {
     if (!myScoreSubmissions) return;
@@ -247,6 +330,7 @@
       });
     });
     pending.sort((a, b) => (a.submittedAt || 0) - (b.submittedAt || 0));
+    section.hidden = pending.length === 0;
     status.textContent = pending.length
       ? `${pending.length} score${pending.length === 1 ? '' : 's'} awaiting review.`
       : 'No score submissions are awaiting review.';
@@ -360,6 +444,8 @@
   if (scoreSubmissionForm || scoreUserInfo || scoreSignInLink || scoreSignUpLink || myScoreSubmissions) {
     auth.onAuthStateChanged(async user => {
       const stateChangeId = ++authStateChangeId;
+      skillUserUid = user && !user.isAnonymous ? user.uid : null;
+      renderSkillChart();
       if (user && !user.isAnonymous && user.email) {
         scoreUserInfo.textContent = `Signed in as ${user.displayName || user.email}`;
         scoreSignInLink.hidden = true;
