@@ -34,8 +34,10 @@
         uid: record.uid,
         username: record.username || 'Player',
         modeScores: Object.fromEntries(gameModes.map(game => [game, 0])),
+        scoredModes: Object.fromEntries(gameModes.map(game => [game, false])),
         latestAt: 0
       };
+      player.scoredModes[record.game] = true;
       if (record.score > player.modeScores[record.game]) {
         player.modeScores[record.game] = record.score;
       }
@@ -51,10 +53,14 @@
     );
   }
 
-  function renderLeaderboard(container, players, limit) {
+  function renderLeaderboard(container, players, scoreMode, limit) {
     if (!container) return;
     container.replaceChildren();
-    const entries = typeof limit === 'number' ? players.slice(0, limit) : players;
+    const rankedPlayers = scoreMode
+      ? players.filter(player => player.scoredModes[scoreMode])
+        .sort((a, b) => b.modeScores[scoreMode] - a.modeScores[scoreMode] || a.username.localeCompare(b.username))
+      : players;
+    const entries = typeof limit === 'number' ? rankedPlayers.slice(0, limit) : rankedPlayers;
     if (!entries.length) {
       const empty = document.createElement('li');
       empty.textContent = 'No approved scores yet.';
@@ -63,30 +69,25 @@
     }
     entries.forEach((player, index) => {
       const item = document.createElement('li');
-      item.textContent = `${index + 1}. ${player.username} — Total: ${numberFormat.format(player.total)} points`;
-      if (typeof limit !== 'number') {
-        const details = document.createElement('ul');
-        details.className = 'score-details';
-        gameModes.forEach(game => {
-          const detail = document.createElement('li');
-          detail.textContent = `${game}: ${numberFormat.format(player.modeScores[game])} points`;
-          details.appendChild(detail);
-        });
-        item.appendChild(details);
-      }
+      const score = scoreMode ? player.modeScores[scoreMode] : player.total;
+      const label = scoreMode ? 'points' : 'average points';
+      item.textContent = `${index + 1}. ${player.username} — ${numberFormat.format(score)} ${label}`;
       container.appendChild(item);
     });
   }
 
   function renderPublicScoreboard(snapshot) {
     const players = aggregateScores(snapshot);
-    renderLeaderboard(document.getElementById('homeScoreboardList'), players, 5);
-    renderLeaderboard(document.getElementById('scoreboardList'), players);
+    renderLeaderboard(document.getElementById('homeScoreboardList'), players, null, 5);
+    renderLeaderboard(document.getElementById('scoreboardTotalList'), players, null);
+    gameModes.forEach(game => {
+      renderLeaderboard(document.getElementById(`scoreboard${game.replaceAll(' ', '')}List`), players, game);
+    });
   }
 
   approvedScoresRef.on('value', renderPublicScoreboard, error => {
     console.error('Could not load approved scores:', error);
-    ['homeScoreboardList', 'scoreboardList'].forEach(id => {
+    ['homeScoreboardList', 'scoreboardTotalList', ...gameModes.map(game => `scoreboard${game.replaceAll(' ', '')}List`)].forEach(id => {
       const container = document.getElementById(id);
       if (!container) return;
       container.replaceChildren();
