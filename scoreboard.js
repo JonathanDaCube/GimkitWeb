@@ -425,7 +425,6 @@
         }
         return;
       }
-      section.hidden = false;
       if (reviewUid === user.uid) return;
       reviewUid = user.uid;
       reviewRef = db.ref('scoreSubmissions');
