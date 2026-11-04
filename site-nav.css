@@ -42,8 +42,8 @@ body {
 
 #siteSidebar a:hover,
 #siteSidebar a[aria-current="page"] {
-  background: #dbeafe;
-  color: #1d4ed8;
+  background: #efdbfe;
+  color: #741dd8;
 }
 
 @media (max-width: 640px) {
