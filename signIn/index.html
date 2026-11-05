@@ -27,6 +27,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
 </head>
 <body>
   <a href="/GimkitWeb/">← Back to site</a>
@@ -79,7 +80,8 @@
     const usersRef = firebase.database().ref('users');
 
     // Ensure persistence (keeps user signed in across reloads/tabs)
-    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(e => console.warn('Could not set persistence:', e));
+    const authPersistence = auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+    authPersistence.catch(error => console.error('Could not set authentication persistence:', error));
 
     const emailEl = document.getElementById('email');
     const passwordEl = document.getElementById('password');
@@ -134,7 +136,7 @@
       const password = passwordEl.value;
       if (!email || !password) { showError('Please enter both email and password.'); return; }
 
-      auth.signInWithEmailAndPassword(email, password)
+      authPersistence.then(() => auth.signInWithEmailAndPassword(email, password))
         .then(async userCredential => {
           await saveUserProfile(userCredential.user);
           finishSignIn();
@@ -146,7 +148,7 @@
     googleSignInBtn.addEventListener('click', () => {
       showError('');
       const provider = new firebase.auth.GoogleAuthProvider();
-      auth.signInWithPopup(provider)
+      authPersistence.then(() => auth.signInWithPopup(provider))
         .then(result => {
           const isNew = result.additionalUserInfo && result.additionalUserInfo.isNewUser;
           const user = result.user;
@@ -234,5 +236,6 @@
     });
     auth.onIdTokenChanged(user => console.log('onIdTokenChanged', user));
   </script>
+  <script src="/GimkitWeb/notifications.js"></script>
 </body>
 </html>

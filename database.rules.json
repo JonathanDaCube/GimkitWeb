@@ -54,6 +54,26 @@
         }
       }
     },
+    "notificationPreferences": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid && auth.token.email_verified == true && auth.token.firebase.sign_in_provider != 'anonymous'",
+        ".write": "auth != null && auth.uid == $uid && auth.token.email_verified == true && auth.token.firebase.sign_in_provider != 'anonymous' && newData.hasChildren(['gameStarted', 'meetingStarted', 'meetingStartingSoon', 'scorePending', 'newNews']) && (newData.child('scorePending').val() != true || auth.token.email == 'jonathanlam0820@gmail.com' || root.child('admins').child(auth.uid).child('email').val() == auth.token.email)",
+        ".validate": "newData.hasChildren(['gameStarted', 'meetingStarted', 'meetingStartingSoon', 'scorePending', 'newNews']) && newData.child('gameStarted').isBoolean() && newData.child('meetingStarted').isBoolean() && newData.child('meetingStartingSoon').isBoolean() && newData.child('scorePending').isBoolean() && newData.child('newNews').isBoolean()"
+      }
+    },
+    "notificationTokens": {
+      "$uid": {
+        ".read": false,
+        "$tokenHash": {
+          ".write": "auth != null && auth.uid == $uid && auth.token.email_verified == true && auth.token.firebase.sign_in_provider != 'anonymous'",
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 4096"
+        }
+      }
+    },
+    "notificationState": {
+      ".read": false,
+      ".write": false
+    },
     "users": {
       ".read": "auth != null && auth.token.email == 'jonathanlam0820@gmail.com' && auth.token.email_verified == true",
       "$uid": {
