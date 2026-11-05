@@ -7,6 +7,7 @@
     { label: 'Voting', href: '/GimkitWeb/votes/', path: '/GimkitWeb/votes' },
     { label: 'Scoreboard', href: '/GimkitWeb/scoreboard/', path: '/GimkitWeb/scoreboard' },
     { label: 'News', href: '/GimkitWeb/news/', path: '/GimkitWeb/news' },
+    { label: 'Settings', href: '/GimkitWeb/settings/', path: '/GimkitWeb/settings' },
     { label: 'Admin', href: '/GimkitWeb/admin/', path: '/GimkitWeb/admin', adminOnly: true },
     { label: 'Owner', href: '/GimkitWeb/owner/', path: '/GimkitWeb/owner', ownerOnly: true }
   ];

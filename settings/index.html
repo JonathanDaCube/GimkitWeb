@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" type="image/svg+xml" href="/GimkitWeb/icon.svg" />
+  <title>Settings - Gimkit Community</title>
+  <link rel="stylesheet" href="/GimkitWeb/site-nav.css" />
+  <link rel="stylesheet" href="/GimkitWeb/buttons.css" />
+  <script src="/GimkitWeb/site-nav.js" defer></script>
+  <style>
+    body { font-family: Arial, sans-serif; }
+    main { max-width: 760px; }
+    .settings-section { margin: 18px 0; padding: 16px; border: 1px solid #ddd; border-radius: 10px; background: #fff; }
+    label { display: block; margin: 12px 0; }
+    input[type="text"] { box-sizing: border-box; width: 100%; max-width: 460px; padding: 9px; }
+    .small { color: #555; font-size: .92rem; }
+    .status { min-height: 1.3em; }
+    [hidden] { display: none !important; }
+  </style>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+</head>
+<body>
+  <main>
+    <h1>Account settings</h1>
+    <p id="accountStatus" class="small" role="status" aria-live="polite">Checking your sign-in...</p>
+    <p id="signedOutMessage" hidden>Sign in to manage your account settings. <a id="settingsSignIn" href="/GimkitWeb/signIn/">Sign in</a></p>
+
+    <div id="accountSettings" hidden>
+      <p id="accountIdentity" class="small"></p>
+      <section class="settings-section" aria-labelledby="popupSettingsHeading">
+        <h2 id="popupSettingsHeading">Popups</h2>
+        <label><input id="disablePopups" type="checkbox" /> Disable automatic popups across the site</label>
+        <p class="small">This preference applies to your signed-in account on all your devices. It currently controls vote announcements and prompts.</p>
+        <p id="popupSettingsStatus" class="small status" role="status" aria-live="polite"></p>
+      </section>
+
+      <section class="settings-section" aria-labelledby="usernameSettingsHeading">
+        <h2 id="usernameSettingsHeading">Scoreboard username</h2>
+        <p class="small">This name is separate from your Google or sign-in account name.</p>
+        <p class="small">Changing it creates a new scoreboard identity; Elo ratings remain under the previous name.</p>
+        <label for="scoreboardUsername">Username
+          <input id="scoreboardUsername" type="text" maxlength="80" autocomplete="nickname" />
+        </label>
+        <button id="saveUsername" type="button">Save username</button>
+        <p id="usernameStatus" class="small status" role="status" aria-live="polite"></p>
+      </section>
+
+      <section class="settings-section" aria-labelledby="passwordSettingsHeading">
+        <h2 id="passwordSettingsHeading">Password</h2>
+        <p class="small">We will email a password reset link to the address on your account.</p>
+        <button id="resetPassword" type="button">Send password reset email</button>
+        <p id="passwordStatus" class="small status" role="status" aria-live="polite"></p>
+      </section>
+    </div>
+  </main>
+
+  <script src="/GimkitWeb/settings.js"></script>
+</body>
+</html>
