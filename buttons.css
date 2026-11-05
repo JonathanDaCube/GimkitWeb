@@ -1,0 +1,44 @@
+.button-like,
+.auth-button,
+.primary-button,
+.secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 6px;
+  color: #fff;
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.button-like,
+.auth-button,
+.primary-button {
+  background: #7c3aed;
+}
+
+.button-like:hover,
+.auth-button:hover,
+.primary-button:hover {
+  background: #6d28d9;
+}
+
+.button-like:focus-visible,
+.auth-button:focus-visible,
+.primary-button:focus-visible,
+.secondary-button:focus-visible {
+  outline: 3px solid #c4b5fd;
+  outline-offset: 2px;
+}
+
+.auth-button[hidden] {
+  display: none;
+}
+
+.secondary-button {
+  background: #6c757d;
+}

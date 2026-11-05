@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="icon" type="image/svg+xml" href="/GimkitWeb/icon.svg" />
   <title>Sign in — Gimkit Community</title>
+  <link rel="stylesheet" href="/GimkitWeb/buttons.css" />
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -15,8 +16,8 @@
     h1 { margin-top: 12px; }
     form { display:flex; flex-direction:column; gap:10px; margin-top:12px; }
     input { padding:10px 12px; border-radius:6px; border:1px solid #ccc; font-size:1rem; }
-    button { padding:10px 14px; border-radius:6px; border:none; background:#007bff; color:white; cursor:pointer; font-size:1rem; }
-    .google-btn { background:#4285F4; width:100%; }
+    button { padding:10px 14px; border-radius:6px; cursor:pointer; font-size:1rem; }
+    .google-btn { width:100%; }
     .auth-divider { display:flex; align-items:center; gap:10px; color:#666; font-size:0.9rem; }
     .auth-divider::before, .auth-divider::after { content:""; height:1px; background:#ddd; flex:1; }
     .error { color:#b33; min-height:20px; }
@@ -34,9 +35,9 @@
   <form id="signInForm" onsubmit="return false;">
     <input id="email" type="email" placeholder="Email" required autocomplete="username" />
     <input id="password" type="password" placeholder="Password" required autocomplete="current-password" />
-    <button id="signInBtn" type="button">Sign in</button>
+    <button id="signInBtn" class="primary-button" type="button">Sign in</button>
     <div class="auth-divider" aria-hidden="true">or</div>
-    <button id="googleSignInBtn" type="button" class="google-btn">Sign in with Google</button>
+    <button id="googleSignInBtn" type="button" class="primary-button google-btn">Sign in with Google</button>
     <div id="errorMsg" class="error" role="alert" aria-live="polite"></div>
   </form>
 
@@ -50,8 +51,8 @@
     <input id="linkPassword" type="password" placeholder="Password" autocomplete="new-password" />
     <input id="linkPasswordConfirm" type="password" placeholder="Confirm password" autocomplete="new-password" />
     <div style="display:flex; gap:8px; margin-top:6px;">
-      <button id="linkBtn" type="button">Complete account</button>
-      <button id="linkCancel" type="button" style="background:#6c757d;">Cancel</button>
+      <button id="linkBtn" class="primary-button" type="button">Complete account</button>
+      <button id="linkCancel" class="secondary-button" type="button">Cancel</button>
     </div>
     <div id="linkError" class="error" role="alert" aria-live="polite"></div>
   </div>
