@@ -13,6 +13,8 @@
     .score-section { border:1px solid #ddd; border-radius:8px; padding:16px; margin:16px 0; }
     .score-section form { display:flex; flex-wrap:wrap; gap:8px; align-items:end; }
     .score-section label { display:flex; flex-direction:column; gap:4px; }
+    #matchPlayers { display:grid; gap:10px; flex-basis:100%; }
+    .match-player { display:flex; flex-wrap:wrap; align-items:end; gap:8px; padding:10px; background:#f8fafc; border-radius:6px; }
     .leaderboard-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:12px; }
     .leaderboard-list { margin:0; padding-left:24px; }
     .leaderboard-list li, #myScoreSubmissions li, [data-score-review-list] li { margin:8px 0; }
@@ -43,27 +45,27 @@
   </div>
   <main>
     <h1>Community Scoreboard</h1>
-    <p class="small">The total leaderboard ranks the average of your highest approved score in each of the six game modes; modes without an approved score count as zero. Each mode also has its own leaderboard. Submissions appear after review by an admin or the site owner.</p>
+    <p class="small">Players start at 50 Elo in each mode. Submit the players and finishing places for an entire match; an admin must approve it before ratings change. Results against higher-rated players earn more, with match changes capped at +8 and -2 Elo.</p>
 
     <section id="skillChartSection" class="score-section" aria-labelledby="skillChartHeading">
       <h2 id="skillChartHeading">Your game-mode skill</h2>
-      <p id="skillChartStatus" class="small" role="status" aria-live="polite">Sign in to see your skill chart.</p>
+      <p id="skillChartStatus" class="small" role="status" aria-live="polite">Sign in to see your Elo ratings.</p>
       <svg id="skillRadar" viewBox="0 0 360 330" role="img" aria-labelledby="skillRadarTitle skillRadarDescription" hidden>
-        <title id="skillRadarTitle">Your skill across the six game modes</title>
-        <desc id="skillRadarDescription">Each axis is scored from zero to one hundred relative to the highest approved score in that mode. The center number is the average skill score.</desc>
+        <title id="skillRadarTitle">Your Elo ratings across the six game modes</title>
+        <desc id="skillRadarDescription">Each axis shows your Elo rating in a game mode, starting at 50. The center number is the average rating.</desc>
         <g id="skillRadarGrid"></g>
         <polygon id="skillArea" points="" />
         <text id="skillTotalValue" x="180" y="158">0</text>
-        <text id="skillTotalLabel" x="180" y="176">TOTAL SKILL</text>
+        <text id="skillTotalLabel" x="180" y="176">AVERAGE ELO</text>
       </svg>
-      <ul id="skillModeValues" aria-label="Your normalized skill scores by game mode"></ul>
+      <ul id="skillModeValues" aria-label="Your Elo ratings by game mode"></ul>
     </section>
 
     <section class="score-section" aria-labelledby="scoreboardHeading">
       <h2 id="scoreboardHeading">Leaderboard</h2>
       <div class="leaderboard-grid">
         <section class="leaderboard-mode" aria-labelledby="totalLeaderboardHeading">
-          <h3 id="totalLeaderboardHeading">Total score</h3>
+          <h3 id="totalLeaderboardHeading">Average Elo</h3>
           <ol id="scoreboardTotalList" class="leaderboard-list" aria-live="polite"><li>Loading scoreboard…</li></ol>
         </section>
         <section class="leaderboard-mode" aria-labelledby="fishtopiaLeaderboardHeading">
@@ -94,8 +96,8 @@
     </section>
 
     <section class="score-section" aria-labelledby="submitScoreHeading">
-      <h2 id="submitScoreHeading">Submit a game mode score</h2>
-      <p id="scoreSubmissionAccess" class="small" role="status" aria-live="polite">Sign in with a verified account to submit a score.</p>
+      <h2 id="submitScoreHeading">Submit a match result</h2>
+      <p id="scoreSubmissionAccess" class="small" role="status" aria-live="polite">Sign in with a verified account to submit a match.</p>
       <form id="scoreSubmissionForm" hidden>
         <label for="scoreGameInput">Game mode
           <select id="scoreGameInput" required>
@@ -108,17 +110,28 @@
             <option value="Dont Look Down">Dont Look Down</option>
           </select>
         </label>
-        <label for="scoreValueInput">Score
-          <input id="scoreValueInput" type="number" min="0" max="1000000000" step="any" required />
-        </label>
-        <button id="scoreSubmitButton" type="submit">Submit for review</button>
+        <p class="small">Enter every player’s Gimkit Community username and finishing place. Tied places are allowed.</p>
+        <div id="matchPlayers">
+          <div class="match-player">
+            <label>Player username <input type="text" data-player-name maxlength="80" required /></label>
+            <label>Finishing place <input type="number" data-player-place min="1" max="20" step="1" required /></label>
+            <button type="button" data-remove-player hidden>Remove player</button>
+          </div>
+          <div class="match-player">
+            <label>Player username <input type="text" data-player-name maxlength="80" required /></label>
+            <label>Finishing place <input type="number" data-player-place min="1" max="20" step="1" required /></label>
+            <button type="button" data-remove-player hidden>Remove player</button>
+          </div>
+        </div>
+        <button id="addMatchPlayer" type="button">Add player</button>
+        <button id="scoreSubmitButton" type="submit">Submit match for review</button>
       </form>
       <p id="scoreSubmissionStatus" class="small" role="status" aria-live="polite"></p>
     </section>
 
     <section class="score-section" aria-labelledby="mySubmissionsHeading">
-      <h2 id="mySubmissionsHeading">My submissions</h2>
-      <ul id="myScoreSubmissions" aria-live="polite"><li>Sign in with a verified account to view your submissions.</li></ul>
+      <h2 id="mySubmissionsHeading">My match submissions</h2>
+      <ul id="myScoreSubmissions" aria-live="polite"><li>Sign in with a verified account to view your match submissions.</li></ul>
     </section>
   </main>
   <script>
