@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" type="image/svg+xml" href="/GimkitWeb/icon.svg" />
+  <title>Community Voting — Gimkit Community</title>
+  <link rel="stylesheet" href="/GimkitWeb/site-nav.css" />
+  <link rel="stylesheet" href="/GimkitWeb/buttons.css" />
+  <script src="/GimkitWeb/site-nav.js" defer></script>
+  <style>
+    body { font-family: Arial, sans-serif; }
+    main { max-width: 900px; }
+    .section, .vote-card { margin: 18px 0; padding: 16px; border: 1px solid #ddd; border-radius: 10px; background: #fff; }
+    .vote-card h3 { margin-top: 0; }
+    .vote-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+    label { display: block; margin: 10px 0; }
+    input[type="text"], input[type="datetime-local"], textarea { box-sizing: border-box; width: 100%; max-width: 620px; padding: 9px; }
+    textarea { min-height: 90px; }
+    .choice-option { display: flex; align-items: flex-start; gap: 8px; }
+    .small, .muted { color: #555; font-size: .92rem; }
+    .status { min-height: 1.3em; }
+    .results { padding-left: 20px; }
+    .results li { margin: 8px 0; }
+    .admin-settings { margin-top: 14px; padding-top: 12px; border-top: 1px solid #ddd; }
+    [hidden] { display: none !important; }
+    button { margin: 4px; }
+  </style>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+</head>
+<body>
+  <main>
+    <h1>Community voting</h1>
+    <p>Browse approved votes and cast one vote while each poll is open.</p>
+    <div id="voteAuthNav">
+      <span id="voteUserInfo" class="small" aria-live="polite"></span>
+      <a id="voteSignIn" href="/GimkitWeb/signIn/?returnTo=%2FGimkitWeb%2Fvotes%2F">Sign in</a>
+      <a id="voteSignUp" href="/GimkitWeb/signUp/?returnTo=%2FGimkitWeb%2Fvotes%2F">Sign up</a>
+      <button id="voteSignOut" type="button" hidden>Sign out</button>
+    </div>
+    <p id="votePageStatus" class="small status" role="status" aria-live="polite">Loading votes…</p>
+
+    <section id="proposalSection" class="section" hidden aria-labelledby="proposalHeading">
+      <h2 id="proposalHeading">Propose a vote</h2>
+      <p class="small">Proposals need owner approval before they appear to voters. Add 2–6 choices, one per line. Public results appear on this page after the vote ends; otherwise only admins can view them here.</p>
+      <form id="proposalForm">
+        <label>Question
+          <input id="proposalTitle" type="text" maxlength="120" required />
+        </label>
+        <label>Description (optional)
+          <textarea id="proposalDescription" maxlength="500"></textarea>
+        </label>
+        <label>Choices
+          <textarea id="proposalChoices" maxlength="650" placeholder="Yes&#10;No" required></textarea>
+        </label>
+        <div class="vote-grid">
+          <label>Start time
+            <input id="proposalStart" type="datetime-local" required />
+          </label>
+          <label>End time
+            <input id="proposalEnd" type="datetime-local" required />
+          </label>
+        </div>
+        <label><input id="proposalShowPopup" type="checkbox" checked /> Show a popup on the homepage while voting is open (on by default)</label>
+        <label><input id="proposalAnnounce" type="checkbox" checked /> Publish results on the Voting page when voting ends (on by default)</label>
+        <button class="primary-button" type="submit">Submit for owner approval</button>
+      </form>
+      <p id="proposalStatus" class="small status" role="status" aria-live="polite"></p>
+    </section>
+
+    <section id="reviewSection" class="section" hidden aria-labelledby="reviewHeading">
+      <h2 id="reviewHeading">Vote proposals</h2>
+      <div id="proposalList"></div>
+    </section>
+
+    <section aria-labelledby="pollsHeading">
+      <h2 id="pollsHeading">Approved votes</h2>
+      <div id="pollList"></div>
+    </section>
+  </main>
+  <script src="/GimkitWeb/votes.js"></script>
+</body>
+</html>

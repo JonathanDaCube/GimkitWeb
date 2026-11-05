@@ -41,7 +41,7 @@
         ".read": "auth != null && auth.token.email_verified == true && auth.token.firebase.sign_in_provider != 'anonymous' && (auth.uid == $uid || auth.token.email == 'jonathanlam0820@gmail.com' || root.child('admins').child(auth.uid).child('email').val() == auth.token.email)",
         "$submissionId": {
           ".write": "auth != null && auth.token.email_verified == true && auth.token.firebase.sign_in_provider != 'anonymous' && (auth.token.email == 'jonathanlam0820@gmail.com' || root.child('admins').child(auth.uid).child('email').val() == auth.token.email || (auth.uid == $uid && !data.exists() && newData.child('uid').val() == auth.uid && newData.child('status').val() == 'pending'))",
-          ".validate": "newData.hasChildren(['uid', 'username', 'game', 'score', 'submittedAt', 'status']) && newData.child('uid').val() == $uid && newData.child('username').isString() && newData.child('username').val().length <= 80 && newData.child('game').isString() && (newData.child('game').val() == 'Fishtopia' || newData.child('game').val() == 'Capture the Flag' || newData.child('game').val() == 'Tag' || newData.child('game').val() == 'Knockback' || newData.child('game').val() == 'Snowbrawl') && newData.child('score').isNumber() && newData.child('score').val() >= 0 && newData.child('score').val() <= 1000000000 && newData.child('submittedAt').isNumber() && newData.child('status').isString() && (newData.child('status').val() == 'pending' || newData.child('status').val() == 'approved' || newData.child('status').val() == 'rejected')"
+          ".validate": "newData.hasChildren(['uid', 'username', 'game', 'score', 'submittedAt', 'status']) && newData.child('uid').val() == $uid && newData.child('username').isString() && newData.child('username').val().length <= 80 && newData.child('game').isString() && (newData.child('game').val() == 'Fishtopia' || newData.child('game').val() == 'Capture the Flag' || newData.child('game').val() == 'Tag' || newData.child('game').val() == 'Knockback' || newData.child('game').val() == 'Snowbrawl' || newData.child('game').val() == 'Dont Look Down') && newData.child('score').isNumber() && newData.child('score').val() >= 0 && newData.child('score').val() <= 1000000000 && newData.child('submittedAt').isNumber() && newData.child('status').isString() && (newData.child('status').val() == 'pending' || newData.child('status').val() == 'approved' || newData.child('status').val() == 'rejected')"
         }
       }
     },
@@ -50,7 +50,48 @@
         ".read": true,
         "$scoreId": {
           ".write": "auth != null && auth.token.email_verified == true && (auth.token.email == 'jonathanlam0820@gmail.com' || root.child('admins').child(auth.uid).child('email').val() == auth.token.email)",
-          ".validate": "newData.hasChildren(['uid', 'username', 'game', 'score', 'submittedAt', 'approvedAt', 'status']) && newData.child('uid').isString() && newData.child('username').isString() && newData.child('game').isString() && (newData.child('game').val() == 'Fishtopia' || newData.child('game').val() == 'Capture the Flag' || newData.child('game').val() == 'Tag' || newData.child('game').val() == 'Knockback' || newData.child('game').val() == 'Snowbrawl') && newData.child('score').isNumber() && newData.child('score').val() >= 0 && newData.child('score').val() <= 1000000000 && newData.child('submittedAt').isNumber() && newData.child('approvedAt').isNumber() && newData.child('status').val() == 'approved'"
+          ".validate": "newData.hasChildren(['uid', 'username', 'game', 'score', 'submittedAt', 'approvedAt', 'status']) && newData.child('uid').isString() && newData.child('username').isString() && newData.child('game').isString() && (newData.child('game').val() == 'Fishtopia' || newData.child('game').val() == 'Capture the Flag' || newData.child('game').val() == 'Tag' || newData.child('game').val() == 'Knockback' || newData.child('game').val() == 'Snowbrawl' || newData.child('game').val() == 'Dont Look Down') && newData.child('score').isNumber() && newData.child('score').val() >= 0 && newData.child('score').val() <= 1000000000 && newData.child('submittedAt').isNumber() && newData.child('approvedAt').isNumber() && newData.child('status').val() == 'approved'"
+        }
+      }
+    },
+    "voteProposals": {
+      ".read": "auth != null && auth.token.email_verified == true && (auth.token.email == 'jonathanlam0820@gmail.com' || root.child('admins').child(auth.uid).child('email').val() == auth.token.email)",
+      "$proposalId": {
+        ".write": "auth != null && auth.token.email_verified == true && ((auth.token.email == 'jonathanlam0820@gmail.com') || (!data.exists() && root.child('admins').child(auth.uid).child('email').val() == auth.token.email && newData.child('createdBy').val() == auth.uid && newData.child('status').val() == 'pending' && newData.child('settings').child('startAt').val() > now))",
+        ".validate": "newData.hasChildren(['title', 'description', 'choices', 'settings', 'createdBy', 'createdAt', 'status']) && newData.child('title').isString() && newData.child('title').val().length > 0 && newData.child('title').val().length <= 120 && newData.child('description').isString() && newData.child('description').val().length <= 500 && newData.child('choices').hasChildren(['1', '2']) && newData.child('settings').hasChildren(['startAt', 'endAt', 'showPopup', 'announceResults']) && newData.child('settings').child('startAt').isNumber() && newData.child('settings').child('endAt').isNumber() && newData.child('settings').child('endAt').val() > newData.child('settings').child('startAt').val() && newData.child('settings').child('showPopup').isBoolean() && newData.child('settings').child('announceResults').isBoolean() && newData.child('createdBy').isString() && newData.child('createdAt').isNumber() && (newData.child('status').val() == 'pending' || newData.child('status').val() == 'approved' || newData.child('status').val() == 'rejected')",
+        "choices": {
+          "$choiceId": {
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
+          }
+        },
+        "settings": {
+          ".validate": "newData.hasChildren(['startAt', 'endAt', 'showPopup', 'announceResults']) && newData.child('startAt').isNumber() && newData.child('endAt').isNumber() && newData.child('showPopup').isBoolean() && newData.child('announceResults').isBoolean()"
+        }
+      }
+    },
+    "voteCatalog": {
+      ".read": true,
+      "$voteId": {
+        ".write": "auth != null && auth.token.email_verified == true && auth.token.email == 'jonathanlam0820@gmail.com' && !data.exists()",
+        ".validate": "newData.hasChildren(['title', 'description', 'choices', 'settings', 'createdAt', 'approvedAt', 'approvedBy']) && newData.child('title').isString() && newData.child('title').val().length > 0 && newData.child('title').val().length <= 120 && newData.child('description').isString() && newData.child('description').val().length <= 500 && newData.child('choices').hasChildren(['1', '2']) && newData.child('settings').hasChildren(['startAt', 'endAt', 'showPopup', 'announceResults']) && newData.child('settings').child('startAt').isNumber() && newData.child('settings').child('startAt').val() > now && newData.child('settings').child('endAt').isNumber() && newData.child('settings').child('endAt').val() > newData.child('settings').child('startAt').val() && newData.child('settings').child('showPopup').isBoolean() && newData.child('settings').child('announceResults').isBoolean() && newData.child('createdAt').isNumber() && newData.child('approvedAt').isNumber() && newData.child('approvedBy').isString()",
+        "choices": {
+          "$choiceId": {
+            ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
+          }
+        },
+        "settings": {
+          ".write": "auth != null && auth.token.email_verified == true && now < data.child('startAt').val() && (auth.token.email == 'jonathanlam0820@gmail.com' || root.child('admins').child(auth.uid).child('email').val() == auth.token.email)",
+          ".validate": "newData.hasChildren(['startAt', 'endAt', 'showPopup', 'announceResults']) && newData.child('startAt').isNumber() && newData.child('startAt').val() > now && newData.child('endAt').isNumber() && newData.child('endAt').val() > newData.child('startAt').val() && newData.child('showPopup').isBoolean() && newData.child('announceResults').isBoolean()"
+        }
+      }
+    },
+    "voteBallots": {
+      "$voteId": {
+        ".read": "(auth != null && auth.token.email_verified == true && now >= root.child('voteCatalog').child($voteId).child('settings').child('endAt').val() && (auth.token.email == 'jonathanlam0820@gmail.com' || root.child('admins').child(auth.uid).child('email').val() == auth.token.email)) || (root.child('voteCatalog').child($voteId).child('settings').child('announceResults').val() == true && now >= root.child('voteCatalog').child($voteId).child('settings').child('endAt').val())",
+        "$uid": {
+          ".read": "auth != null && (auth.uid == $uid || (auth.token.email_verified == true && now >= root.child('voteCatalog').child($voteId).child('settings').child('endAt').val() && (auth.token.email == 'jonathanlam0820@gmail.com' || root.child('admins').child(auth.uid).child('email').val() == auth.token.email)) || (root.child('voteCatalog').child($voteId).child('settings').child('announceResults').val() == true && now >= root.child('voteCatalog').child($voteId).child('settings').child('endAt').val()))",
+          ".write": "auth != null && auth.uid == $uid && auth.token.firebase.sign_in_provider != 'anonymous' && !data.exists() && now >= root.child('voteCatalog').child($voteId).child('settings').child('startAt').val() && now < root.child('voteCatalog').child($voteId).child('settings').child('endAt').val() && root.child('voteCatalog').child($voteId).child('choices').child(newData.child('choiceId').val()).exists()",
+          ".validate": "newData.hasChildren(['choiceId', 'votedAt']) && newData.child('choiceId').isString() && newData.child('votedAt').isNumber() && newData.child('votedAt').val() == now"
         }
       }
     },

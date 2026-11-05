@@ -19,6 +19,11 @@
     #homeScoreboardList { padding-left:24px; }
     button { margin-left: 8px; }
     .small { font-size: 0.9rem; color: #555; }
+    #votePopup { width: min(440px, calc(100% - 48px)); border: 0; border-radius: 12px; padding: 24px; box-shadow: 0 16px 48px #0005; }
+    #votePopup::backdrop { background: #1119; }
+    #votePopup h2 { margin-top: 0; }
+    #votePopupDescription { white-space: pre-line; }
+    .vote-popup-actions { display: flex; justify-content: flex-end; gap: 8px; }
   </style>
 
   <!-- Firebase (compat for simpler example) -->
@@ -51,6 +56,15 @@
   <ol id="homeScoreboardList" aria-live="polite"><li>Loading scoreboard…</li></ol>
   <a href="/GimkitWeb/scoreboard/">View the full scoreboard and submit a score</a>
 </section>
+<dialog id="votePopup" aria-labelledby="votePopupTitle">
+  <h2 id="votePopupTitle">Community vote</h2>
+  <p id="votePopupDescription"></p>
+  <p id="votePopupPrompt" class="small">A community vote is open.</p>
+  <div class="vote-popup-actions">
+    <button id="dismissVotePopup" type="button">Close</button>
+    <a class="button-like" href="/GimkitWeb/votes/">Go to voting</a>
+  </div>
+</dialog>
 <p id="writeAccessNotice" class="small" role="status" hidden>Sign in to add games and meetings. Only the site administrator can remove or activate entries.</p>
 
 <div>
@@ -417,6 +431,7 @@
   });
 </script>
 <script src="/GimkitWeb/scoreboard.js"></script>
+<script src="/GimkitWeb/vote-popup.js"></script>
 
 <p class="small" style="margin-top: 30px; text-align: center;">Made by JonathanDaCube • More Features Coming Soon</p>
 
