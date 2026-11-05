@@ -7,7 +7,7 @@
   const scoreSubmissionForm = document.getElementById('scoreSubmissionForm');
   const reviewSections = Array.from(document.querySelectorAll('[data-score-review]'));
   const ownerEmail = 'jonathanlam0820@gmail.com';
-  const gameModes = ['Fishtopia', 'Capture the Flag', 'Tag', 'Knockback', 'Snowbrawl'];
+  const gameModes = ['Fishtopia', 'Capture the Flag', 'Tag', 'Knockback', 'Snowbrawl', 'Dont Look Down'];
   const numberFormat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 20 });
 
   function isAllowedGame(game) {
@@ -266,7 +266,7 @@
       const score = Number(scoreValueInput.value);
       if (!isAllowedGame(game) || scoreValueInput.value.trim() === '' ||
           !Number.isFinite(score) || score < 0 || score > 1000000000) {
-        scoreSubmissionStatus.textContent = 'Select one of the five game modes and enter a score from 0 to 1,000,000,000.';
+        scoreSubmissionStatus.textContent = 'Select one of the six game modes and enter a score from 0 to 1,000,000,000.';
         return;
       }
 

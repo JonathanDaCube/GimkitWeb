@@ -43,13 +43,13 @@
   </div>
   <main>
     <h1>Community Scoreboard</h1>
-    <p class="small">The total leaderboard ranks the average of your highest approved score in each of the five game modes; modes without an approved score count as zero. Each mode also has its own leaderboard. Submissions appear after review by an admin or the site owner.</p>
+    <p class="small">The total leaderboard ranks the average of your highest approved score in each of the six game modes; modes without an approved score count as zero. Each mode also has its own leaderboard. Submissions appear after review by an admin or the site owner.</p>
 
     <section id="skillChartSection" class="score-section" aria-labelledby="skillChartHeading">
       <h2 id="skillChartHeading">Your game-mode skill</h2>
       <p id="skillChartStatus" class="small" role="status" aria-live="polite">Sign in to see your skill chart.</p>
       <svg id="skillRadar" viewBox="0 0 360 330" role="img" aria-labelledby="skillRadarTitle skillRadarDescription" hidden>
-        <title id="skillRadarTitle">Your skill across the five game modes</title>
+        <title id="skillRadarTitle">Your skill across the six game modes</title>
         <desc id="skillRadarDescription">Each axis is scored from zero to one hundred relative to the highest approved score in that mode. The center number is the average skill score.</desc>
         <g id="skillRadarGrid"></g>
         <polygon id="skillArea" points="" />
@@ -86,6 +86,10 @@
           <h3 id="snowbrawlLeaderboardHeading">Snowbrawl</h3>
           <ol id="scoreboardSnowbrawlList" class="leaderboard-list" aria-live="polite"><li>Loading scoreboard…</li></ol>
         </section>
+        <section class="leaderboard-mode" aria-labelledby="dontLookDownLeaderboardHeading">
+          <h3 id="dontLookDownLeaderboardHeading">Dont Look Down</h3>
+          <ol id="scoreboardDontLookDownList" class="leaderboard-list" aria-live="polite"><li>Loading scoreboard…</li></ol>
+        </section>
       </div>
     </section>
 
@@ -101,6 +105,7 @@
             <option value="Tag">Tag</option>
             <option value="Knockback">Knockback</option>
             <option value="Snowbrawl">Snowbrawl</option>
+            <option value="Dont Look Down">Dont Look Down</option>
           </select>
         </label>
         <label for="scoreValueInput">Score
