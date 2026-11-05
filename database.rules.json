@@ -35,13 +35,30 @@
       ".write": "auth != null && auth.token.email_verified == true && (auth.token.email == 'jonathanlam0820@gmail.com' || root.child('admins').child(auth.uid).child('email').val() == auth.token.email)",
       ".indexOn": ["createdAt"]
     },
-    "scoreSubmissions": {
+    "matchSubmissions": {
       ".read": "auth != null && auth.token.email_verified == true && (auth.token.email == 'jonathanlam0820@gmail.com' || root.child('admins').child(auth.uid).child('email').val() == auth.token.email)",
       "$uid": {
         ".read": "auth != null && auth.token.email_verified == true && auth.token.firebase.sign_in_provider != 'anonymous' && (auth.uid == $uid || auth.token.email == 'jonathanlam0820@gmail.com' || root.child('admins').child(auth.uid).child('email').val() == auth.token.email)",
-        "$submissionId": {
-          ".write": "auth != null && auth.token.email_verified == true && auth.token.firebase.sign_in_provider != 'anonymous' && (auth.token.email == 'jonathanlam0820@gmail.com' || root.child('admins').child(auth.uid).child('email').val() == auth.token.email || (auth.uid == $uid && !data.exists() && newData.child('uid').val() == auth.uid && newData.child('status').val() == 'pending'))",
-          ".validate": "newData.hasChildren(['uid', 'username', 'game', 'score', 'submittedAt', 'status']) && newData.child('uid').val() == $uid && newData.child('username').isString() && newData.child('username').val().length <= 80 && newData.child('game').isString() && (newData.child('game').val() == 'Fishtopia' || newData.child('game').val() == 'Capture the Flag' || newData.child('game').val() == 'Tag' || newData.child('game').val() == 'Knockback' || newData.child('game').val() == 'Snowbrawl' || newData.child('game').val() == 'Dont Look Down') && newData.child('score').isNumber() && newData.child('score').val() >= 0 && newData.child('score').val() <= 1000000000 && newData.child('submittedAt').isNumber() && newData.child('status').isString() && (newData.child('status').val() == 'pending' || newData.child('status').val() == 'approved' || newData.child('status').val() == 'rejected')"
+        "$matchId": {
+          ".write": "auth != null && auth.token.email_verified == true && auth.token.firebase.sign_in_provider != 'anonymous' && (auth.token.email == 'jonathanlam0820@gmail.com' || root.child('admins').child(auth.uid).child('email').val() == auth.token.email || (auth.uid == $uid && !data.exists() && newData.child('submitterUid').val() == auth.uid && newData.child('status').val() == 'pending'))",
+          ".validate": "newData.hasChildren(['game', 'players', 'submitterUid', 'submittedAt', 'status']) && newData.child('submitterUid').val() == $uid && newData.child('game').isString() && (newData.child('game').val() == 'Fishtopia' || newData.child('game').val() == 'Capture the Flag' || newData.child('game').val() == 'Tag' || newData.child('game').val() == 'Knockback' || newData.child('game').val() == 'Snowbrawl' || newData.child('game').val() == 'Dont Look Down') && newData.child('players').hasChildren(['1', '2']) && newData.child('submittedAt').isNumber() && (newData.child('status').val() == 'pending' || newData.child('status').val() == 'approved' || newData.child('status').val() == 'rejected')",
+          "players": {
+            "$playerIndex": {
+              ".validate": "newData.hasChildren(['username', 'place']) && newData.child('username').isString() && newData.child('username').val().length > 0 && newData.child('username').val().length <= 80 && newData.child('place').isNumber() && newData.child('place').val() >= 1 && newData.child('place').val() <= 20"
+            }
+          }
+        }
+      }
+    },
+    "eloMatches": {
+      ".read": true,
+      "$matchId": {
+        ".write": "auth != null && auth.token.email_verified == true && (auth.token.email == 'jonathanlam0820@gmail.com' || root.child('admins').child(auth.uid).child('email').val() == auth.token.email)",
+        ".validate": "newData.hasChildren(['game', 'players', 'submitterUid', 'submittedAt', 'approvedAt', 'approvedBy', 'status']) && newData.child('game').isString() && (newData.child('game').val() == 'Fishtopia' || newData.child('game').val() == 'Capture the Flag' || newData.child('game').val() == 'Tag' || newData.child('game').val() == 'Knockback' || newData.child('game').val() == 'Snowbrawl' || newData.child('game').val() == 'Dont Look Down') && newData.child('players').hasChildren(['1', '2']) && newData.child('submitterUid').isString() && newData.child('submittedAt').isNumber() && newData.child('approvedAt').isNumber() && newData.child('approvedBy').isString() && newData.child('status').val() == 'approved'",
+        "players": {
+          "$playerIndex": {
+            ".validate": "newData.hasChildren(['username', 'place']) && newData.child('username').isString() && newData.child('username').val().length > 0 && newData.child('username').val().length <= 80 && newData.child('place').isNumber() && newData.child('place').val() >= 1 && newData.child('place').val() <= 20"
+          }
         }
       }
     },
@@ -49,7 +66,6 @@
       "approved": {
         ".read": true,
         "$scoreId": {
-          ".write": "auth != null && auth.token.email_verified == true && (auth.token.email == 'jonathanlam0820@gmail.com' || root.child('admins').child(auth.uid).child('email').val() == auth.token.email)",
           ".validate": "newData.hasChildren(['uid', 'username', 'game', 'score', 'submittedAt', 'approvedAt', 'status']) && newData.child('uid').isString() && newData.child('username').isString() && newData.child('game').isString() && (newData.child('game').val() == 'Fishtopia' || newData.child('game').val() == 'Capture the Flag' || newData.child('game').val() == 'Tag' || newData.child('game').val() == 'Knockback' || newData.child('game').val() == 'Snowbrawl' || newData.child('game').val() == 'Dont Look Down') && newData.child('score').isNumber() && newData.child('score').val() >= 0 && newData.child('score').val() <= 1000000000 && newData.child('submittedAt').isNumber() && newData.child('approvedAt').isNumber() && newData.child('status').val() == 'approved'"
         }
       }
