@@ -18,6 +18,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
 </head>
 <body>
   <h1>News</h1>
@@ -37,7 +38,9 @@
     };
 
     firebase.initializeApp(firebaseConfig);
-    firebase.auth();
+    const auth = firebase.auth();
+    auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+      .catch(error => console.error('Could not set authentication persistence:', error));
     const newsList = document.getElementById('newsList');
     const newsStatus = document.getElementById('newsStatus');
 
@@ -85,5 +88,6 @@
       newsStatus.textContent = 'News is temporarily unavailable.';
     });
   </script>
+  <script src="/GimkitWeb/notifications.js"></script>
 </body>
 </html>
