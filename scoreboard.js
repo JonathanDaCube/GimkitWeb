@@ -149,6 +149,8 @@
   const scoreSubmitButton = document.getElementById('scoreSubmitButton');
   const matchPlayers = document.getElementById('matchPlayers');
   const addMatchPlayerButton = document.getElementById('addMatchPlayer');
+  const scoreboardUsernameInput = document.getElementById('scoreboardUsernameInput');
+  const saveScoreboardUsernameButton = document.getElementById('saveScoreboardUsername');
   const skillRadar = document.getElementById('skillRadar');
   const skillRadarGrid = document.getElementById('skillRadarGrid');
   const skillArea = document.getElementById('skillArea');
@@ -159,6 +161,50 @@
   let authStateChangeId = 0;
   let skillPlayerKey = null;
   let latestPlayers = [];
+
+  async function saveScoreboardUsername(user) {
+    const username = scoreboardUsernameInput.value.trim();
+    if (!username || username.length > 80) {
+      scoreSubmissionStatus.textContent = 'Enter a scoreboard username up to 80 characters.';
+      return false;
+    }
+    await db.ref(`users/${user.uid}/scoreboardUsername`).set(username);
+    skillPlayerKey = playerKey(username);
+    renderSkillChart();
+    scoreSubmissionStatus.textContent = 'Scoreboard username saved.';
+    return true;
+  }
+
+  if (scoreboardUsernameInput) {
+    scoreboardUsernameInput.addEventListener('input', () => {
+      const username = scoreboardUsernameInput.value.trim();
+      skillPlayerKey = username ? playerKey(username) : null;
+      renderSkillChart();
+      if (matchPlayers) {
+        const firstPlayerInput = matchPlayers.querySelector('[data-player-name]');
+        if (firstPlayerInput) firstPlayerInput.value = username;
+      }
+    });
+  }
+
+  if (saveScoreboardUsernameButton) {
+    saveScoreboardUsernameButton.addEventListener('click', async () => {
+      const user = auth.currentUser;
+      if (!user || user.isAnonymous || !user.emailVerified) {
+        scoreSubmissionStatus.textContent = 'Sign in with a verified account to save your scoreboard username.';
+        return;
+      }
+      saveScoreboardUsernameButton.disabled = true;
+      try {
+        await saveScoreboardUsername(user);
+      } catch (error) {
+        console.error('Could not save scoreboard username:', error);
+        scoreSubmissionStatus.textContent = 'Could not save your scoreboard username. Try again.';
+      } finally {
+        saveScoreboardUsernameButton.disabled = false;
+      }
+    });
+  }
 
   initializeSkillRadar();
 
@@ -358,14 +404,15 @@
         place: Number(row.querySelector('[data-player-place]').value)
       }));
       const normalizedNames = players.map(player => player.username.toLocaleLowerCase());
-      const submitterUsername = (user.displayName || 'Player').trim();
+      const submitterUsername = scoreboardUsernameInput.value.trim();
       if (!isAllowedGame(game) || players.length < 2 || players.length > 20 ||
           players.some(player => !player.username || player.username.length > 80 ||
             !Number.isInteger(player.place) || player.place < 1 || player.place > players.length) ||
           new Set(normalizedNames).size !== normalizedNames.length ||
-          !players.some(player => player.username.toLocaleLowerCase() === submitterUsername.toLocaleLowerCase()) ||
+          !submitterUsername || submitterUsername.length > 80 ||
+          !players.some(player => playerKey(player.username) === playerKey(submitterUsername)) ||
           !players.some(player => player.place === 1)) {
-        scoreSubmissionStatus.textContent = `Select a game mode and enter 2–20 unique player usernames, including your own (${submitterUsername}), with valid finishing places and a first-place result.`;
+        scoreSubmissionStatus.textContent = 'Choose a scoreboard username and enter 2–20 unique player usernames, including your own scoreboard username, with valid finishing places and a first-place result.';
         return;
       }
 
@@ -378,6 +425,9 @@
           return;
         }
         await auth.currentUser.getIdToken(true);
+        await db.ref(`users/${user.uid}/scoreboardUsername`).set(submitterUsername);
+        skillPlayerKey = playerKey(submitterUsername);
+        renderSkillChart();
         const submission = {
           submitterUid: user.uid,
           game,
@@ -388,6 +438,7 @@
         await matchSubmissionRoot.child(user.uid).push().set(submission);
         scoreSubmissionForm.reset();
         matchPlayers.querySelectorAll('.match-player').forEach(row => row.remove());
+        scoreboardUsernameInput.value = submitterUsername;
         matchPlayers.appendChild(createPlayerRow(submitterUsername));
         matchPlayers.appendChild(createPlayerRow());
         updatePlayerRowControls();
@@ -580,8 +631,9 @@
   if (scoreSubmissionForm || scoreUserInfo || scoreSignInLink || scoreSignUpLink || myScoreSubmissions) {
     auth.onAuthStateChanged(async user => {
       const stateChangeId = ++authStateChangeId;
-      skillPlayerKey = user && !user.isAnonymous ? playerKey(user.displayName || 'Player') : null;
+      skillPlayerKey = null;
       renderSkillChart();
+      if (scoreboardUsernameInput) scoreboardUsernameInput.value = '';
       if (user && !user.isAnonymous && user.email) {
         scoreUserInfo.textContent = `Signed in as ${user.displayName || user.email}`;
         scoreSignInLink.hidden = true;
@@ -615,10 +667,27 @@
       if (stateChangeId !== authStateChangeId) return;
       const currentUser = auth.currentUser;
       if (currentUser && currentUser.uid === user.uid && currentUser.emailVerified) {
+        let scoreboardUsername = '';
+        try {
+          const usernameSnapshot = await db.ref(`users/${currentUser.uid}/scoreboardUsername`).once('value');
+          scoreboardUsername = usernameSnapshot.val() || '';
+        } catch (error) {
+          console.error('Could not load scoreboard username:', error);
+          if (scoreSubmissionAccess) {
+            scoreSubmissionAccess.textContent = 'Could not load your scoreboard profile. Refresh the page and try again.';
+          }
+          return;
+        }
+        if (stateChangeId !== authStateChangeId) return;
+        if (scoreboardUsernameInput) scoreboardUsernameInput.value = scoreboardUsername;
+        skillPlayerKey = scoreboardUsername ? playerKey(scoreboardUsername) : null;
+        renderSkillChart();
         if (scoreSubmissionForm) {
           scoreSubmissionForm.hidden = false;
           scoreSubmissionAccess.textContent = 'Your match stays private until an admin approves it.';
-          matchPlayers.querySelector('[data-player-name]').value = currentUser.displayName || 'Player';
+          if (matchPlayers.querySelector('[data-player-name]')) {
+            matchPlayers.querySelector('[data-player-name]').value = scoreboardUsername;
+          }
         }
         watchMySubmissions(currentUser);
       } else if (scoreSubmissionAccess) {

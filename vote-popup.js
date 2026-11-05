@@ -10,13 +10,18 @@
 
   let currentUser = null;
   let authReady = false;
+  let preferenceReady = false;
+  let popupsDisabled = false;
+  let preferenceRef = null;
+  let preferenceListener = null;
+  let authSequence = 0;
   let polls = [];
   let checkSequence = 0;
 
   dismiss.addEventListener('click', () => popup.close());
 
   async function checkForOpenVote() {
-    if (!authReady || popup.open) return;
+    if (!authReady || !preferenceReady || popupsDisabled || popup.open) return;
     const sequence = ++checkSequence;
     const now = Date.now();
     const active = polls
@@ -108,9 +113,38 @@
     }
   }
 
+  function detachPreferenceListener() {
+    if (preferenceRef && preferenceListener) preferenceRef.off('value', preferenceListener);
+    preferenceRef = null;
+    preferenceListener = null;
+  }
+
   firebase.auth().onAuthStateChanged(user => {
+    const sequence = ++authSequence;
     currentUser = user;
     authReady = true;
+    preferenceReady = false;
+    popupsDisabled = false;
+    detachPreferenceListener();
+    if (user && !user.isAnonymous) {
+      preferenceRef = firebase.database().ref(`users/${user.uid}/settings/disablePopups`);
+      preferenceListener = snapshot => {
+        if (sequence !== authSequence) return;
+        popupsDisabled = snapshot.val() === true;
+        preferenceReady = true;
+        if (popupsDisabled && popup.open) popup.close();
+        if (!popupsDisabled) checkForOpenVote();
+      };
+      preferenceRef.on('value', preferenceListener, error => {
+        if (sequence !== authSequence) return;
+        console.error('Could not load popup preferences:', error);
+        popupsDisabled = false;
+        preferenceReady = true;
+        checkForOpenVote();
+      });
+      return;
+    }
+    preferenceReady = true;
     checkForOpenVote();
   });
 
