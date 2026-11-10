@@ -10,8 +10,8 @@ The opening popup and public results are enabled by default. When public results
 
 ## Elo scoreboard
 
-Players start at 50 Elo for each game mode. A signed-in player submits the full match roster and finishing places; an admin must approve the result before ratings change. Rating changes compare each player's placements against Elo-based expectations, with gains capped at 8 and losses capped at 2 Elo per match. The total leaderboard averages a player's six mode ratings. Match results are stored by submitted usernames, so usernames are treated as the player's scoreboard identity.
+Players start at 50 Elo for each game mode. A signed-in player submits the full match roster and finishing places; an admin must approve the result before ratings change. Rating changes compare each player's placements against Elo-based expectations, with gains capped at 8 and losses capped at 2 Elo per match. The total leaderboard averages a player's six mode ratings. Registered player usernames resolve to stable account IDs so Elo history follows username changes; unregistered roster names remain keyed by name.
 
 ## Account settings
 
-The Settings page lets signed-in users choose a scoreboard username independent of their sign-in provider, disable automatic vote popups across their account, and request a password reset email. Popup and username preferences are saved to the user's private profile.
+The Settings page lets signed-in users choose a unique account username, disable automatic vote popups across their account, and request a password reset email. Usernames are globally reserved and displayed throughout the site; email remains the sign-in identifier. Usernames must be 3-20 lowercase letters, numbers, underscores, or hyphens. Username changes preserve Elo history, and prior names remain reserved as aliases to the same account. Existing accounts claim their current username the next time they sign in or visit an authenticated page; a conflicting or invalid legacy name must be changed in Settings.

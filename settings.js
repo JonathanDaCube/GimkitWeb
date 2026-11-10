@@ -23,13 +23,16 @@
   const accountIdentity = document.getElementById('accountIdentity');
   const disablePopups = document.getElementById('disablePopups');
   const popupSettingsStatus = document.getElementById('popupSettingsStatus');
-  const scoreboardUsername = document.getElementById('scoreboardUsername');
+  const accountUsername = document.getElementById('accountUsername');
   const saveUsername = document.getElementById('saveUsername');
   const usernameStatus = document.getElementById('usernameStatus');
   const resetPassword = document.getElementById('resetPassword');
   const passwordStatus = document.getElementById('passwordStatus');
   const returnTo = '/GimkitWeb/settings/';
   settingsSignIn.href = `/GimkitWeb/signIn/?returnTo=${encodeURIComponent(returnTo)}`;
+  if (new URLSearchParams(window.location.search).get('username') === 'choose') {
+    usernameStatus.textContent = 'Choose a new unique username to continue using your account.';
+  }
 
   let authSequence = 0;
   let savedPopupPreference = false;
@@ -56,21 +59,24 @@
 
   saveUsername.addEventListener('click', async () => {
     const user = auth.currentUser;
-    const username = scoreboardUsername.value.trim();
+    const username = accountUsername.value;
     if (!user || user.isAnonymous) return;
-    if (!username || username.length > 80) {
-      usernameStatus.textContent = 'Enter a username up to 80 characters.';
+    try {
+      window.accountUsernames.validate(username);
+    } catch (error) {
+      usernameStatus.textContent = error.message;
       return;
     }
     saveUsername.disabled = true;
     usernameStatus.textContent = 'Saving username...';
     try {
-      await db.ref(`users/${user.uid}/scoreboardUsername`).set(username);
-      scoreboardUsername.value = username;
-      usernameStatus.textContent = 'Scoreboard username saved.';
+      const savedUsername = await window.accountUsernames.claim(username, user);
+      accountUsername.value = savedUsername;
+      accountIdentity.textContent = `Signed in as @${savedUsername}`;
+      usernameStatus.textContent = 'Account username saved.';
     } catch (error) {
       console.error('Could not save scoreboard username:', error);
-      usernameStatus.textContent = 'Could not save your username. Try again.';
+      usernameStatus.textContent = error.message || 'Could not save your username. Try again.';
     } finally {
       saveUsername.disabled = false;
     }
@@ -108,16 +114,27 @@
     }
 
     accountStatus.textContent = 'Loading account settings...';
-    accountIdentity.textContent = `Signed in as ${user.email || 'account'}`;
+    accountIdentity.textContent = 'Loading account username...';
     try {
       const snapshot = await db.ref(`users/${user.uid}`).once('value');
       if (sequence !== authSequence) return;
       const profile = snapshot.val() || {};
-      scoreboardUsername.value = typeof profile.scoreboardUsername === 'string'
-        ? profile.scoreboardUsername
-        : '';
+      accountUsername.value = typeof profile.username === 'string'
+        ? profile.username
+        : typeof profile.scoreboardUsername === 'string' ? profile.scoreboardUsername : '';
       savedPopupPreference = Boolean(profile.settings && profile.settings.disablePopups === true);
       disablePopups.checked = savedPopupPreference;
+      try {
+        const username = await window.accountUsernames.ensure(user);
+        accountUsername.value = username || accountUsername.value;
+        accountIdentity.textContent = username
+          ? `Signed in as @${username}`
+          : 'Choose a unique username to identify yourself throughout the site.';
+      } catch (error) {
+        console.error('Could not verify account username:', error);
+        accountIdentity.textContent = 'Choose a different username; the current one is invalid or already taken.';
+      }
+      if (sequence !== authSequence) return;
       accountStatus.textContent = '';
       accountSettings.hidden = false;
     } catch (error) {

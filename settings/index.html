@@ -21,6 +21,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="/GimkitWeb/account-usernames.js"></script>
 </head>
 <body>
   <main>
@@ -38,11 +39,11 @@
       </section>
 
       <section class="settings-section" aria-labelledby="usernameSettingsHeading">
-        <h2 id="usernameSettingsHeading">Scoreboard username</h2>
-        <p class="small">This name is separate from your Google or sign-in account name.</p>
-        <p class="small">Changing it creates a new scoreboard identity; Elo ratings remain under the previous name.</p>
-        <label for="scoreboardUsername">Username
-          <input id="scoreboardUsername" type="text" maxlength="80" autocomplete="nickname" />
+        <h2 id="usernameSettingsHeading">Account username</h2>
+        <p class="small">This is your unique name throughout the site. Your username does not change your sign-in method; email/password accounts still use their email address.</p>
+        <p class="small">Previous usernames stay reserved to your account, and your Elo history follows you when you change names.</p>
+        <label for="accountUsername">Username
+          <input id="accountUsername" type="text" minlength="3" maxlength="20" pattern="[A-Za-z0-9_-]{3,20}" autocomplete="nickname" autocapitalize="none" />
         </label>
         <button id="saveUsername" type="button">Save username</button>
         <p id="usernameStatus" class="small status" role="status" aria-live="polite"></p>

@@ -27,6 +27,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="/GimkitWeb/account-usernames.js"></script>
 </head>
 <body>
   <a href="/GimkitWeb/">← Back to site</a>
@@ -41,14 +42,15 @@
     <div id="errorMsg" class="error" role="alert" aria-live="polite"></div>
   </form>
 
+  <p class="small">Sign in with your email address and password. Your username is your public name across the site.</p>
   <p class="small">Don't have an account? <a id="createAccountLink" href="/GimkitWeb/signUp/">Create one</a></p>
 
   <!-- Extra UI shown when linking a new Google account to an email/password credential -->
   <div id="googleExtra" class="link-area" style="display:none;">
     <h2>Create account details</h2>
-    <p class="small">We created an account for <span id="googleEmail"></span>. To finish setup, choose a username and password you can use to sign in directly later.</p>
-    <input id="linkUsername" type="text" placeholder="Username" autocomplete="nickname" />
-    <input id="linkPassword" type="password" placeholder="Password" autocomplete="new-password" />
+    <p class="small">We created an account for <span id="googleEmail"></span>. Choose a unique username. You can optionally add an email and password to sign in without Google.</p>
+    <input id="linkUsername" type="text" placeholder="Unique username (3-20 letters, numbers, _ or -)" minlength="3" maxlength="20" pattern="[A-Za-z0-9_-]{3,20}" autocomplete="nickname" autocapitalize="none" />
+    <input id="linkPassword" type="password" placeholder="Password (optional)" autocomplete="new-password" />
     <input id="linkPasswordConfirm" type="password" placeholder="Confirm password" autocomplete="new-password" />
     <div style="display:flex; gap:8px; margin-top:6px;">
       <button id="linkBtn" class="primary-button" type="button">Complete account</button>
@@ -114,16 +116,31 @@
     document.getElementById('createAccountLink').href =
       `/GimkitWeb/signUp/?returnTo=${encodeURIComponent(returnTo)}`;
 
-    function finishSignIn() {
-      window.location.href = returnTo;
+    async function continueSignIn(user) {
+      const usernameSnapshot = await usersRef.child(user.uid).child("username").once("value");
+      const username = usernameSnapshot.val();
+      if (!username) {
+        window.location.href = "/GimkitWeb/settings/?username=choose";
+        return;
+      }
+      try {
+        await window.accountUsernames.claim(username, user);
+        window.location.href = returnTo;
+      } catch (error) {
+        console.error('Could not register the account username:', error);
+        if (error.code === 'username/already-taken' || error.code === 'username/invalid') {
+          window.location.href = "/GimkitWeb/settings/?username=choose";
+          return;
+        }
+        throw error;
+      }
     }
 
     function showError(msg) { errorMsg.textContent = msg || ''; }
     function showLinkError(msg) { linkError.textContent = msg || ''; }
 
     function saveUserProfile(user) {
-      const profile = {};
-      if (user.displayName) profile.username = user.displayName;
+      const profile = { updatedAt: Date.now() };
       if (user.email) profile.email = user.email.toLowerCase();
       return usersRef.child(user.uid).update(profile);
     }
@@ -138,7 +155,7 @@
       authPersistence.then(() => auth.signInWithEmailAndPassword(email, password))
         .then(async userCredential => {
           await saveUserProfile(userCredential.user);
-          finishSignIn();
+          await continueSignIn(userCredential.user);
         })
         .catch(err => { console.error('Sign-in failed:', err); showError(err.message || 'Sign-in failed.'); });
     });
@@ -154,7 +171,7 @@
           if (isNew) {
             // Show UI to let user pick a username and password to link to this account
             googleEmail.textContent = user.email || '';
-            linkUsername.value = user.displayName || '';
+            linkUsername.value = '';
             linkPassword.value = '';
             linkPasswordConfirm.value = '';
             showLinkError('');
@@ -163,7 +180,7 @@
           } else {
             // Existing user, just redirect
             saveUserProfile(user)
-              .then(finishSignIn)
+              .then(() => continueSignIn(user))
               .catch(err => {
                 console.error('Could not save user profile:', err);
                 showError(err.message || 'Could not save user profile.');
@@ -191,22 +208,25 @@
       const passwordConfirm = linkPasswordConfirm.value;
       const email = googleEmail.textContent;
 
-      if (!username) { showLinkError('Please enter a username.'); return; }
-      if (!password) { showLinkError('Please enter a password.'); return; }
+      try {
+        window.accountUsernames.validate(username);
+      } catch (error) {
+        showLinkError(error.message);
+        return;
+      }
+      if ((password || passwordConfirm) && !password) { showLinkError('Enter a password to add email sign-in.'); return; }
       if (password !== passwordConfirm) { showLinkError('Passwords do not match.'); return; }
       if (!auth.currentUser) { showLinkError('No authenticated user. Please try signing in with Google again.'); return; }
 
       // Create credential and link
-      const credential = firebase.auth.EmailAuthProvider.credential(email, password);
-      auth.currentUser.linkWithCredential(credential)
-        .then(() => {
-          // Set displayName (username) on the linked account
-          return auth.currentUser.updateProfile({ displayName: username });
-        })
+      window.accountUsernames.claim(username, auth.currentUser)
+        .then(() => password
+          ? auth.currentUser.linkWithCredential(firebase.auth.EmailAuthProvider.credential(email, password))
+          : null)
         .then(() => saveUserProfile(auth.currentUser))
         .then(() => {
           // Done — redirect to site
-          finishSignIn();
+          return continueSignIn(auth.currentUser);
         })
         .catch(err => {
           console.error('Linking credential failed:', err);

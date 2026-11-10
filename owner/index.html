@@ -95,6 +95,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="/GimkitWeb/account-usernames.js"></script>
   <script>
     const firebaseConfig = {
       apiKey: "AIzaSyDq6eOzOWLd88XG-wFo0LN1O3l2Yyvdfls",
@@ -162,7 +163,6 @@
 
     function saveUserProfile(user) {
       const profile = { updatedAt: Date.now() };
-      if (user.displayName) profile.username = user.displayName;
       if (user.email) profile.email = user.email.toLowerCase();
       return usersRef.child(user.uid).update(profile);
     }
@@ -514,6 +514,7 @@
 
     auth.onAuthStateChanged(async user => {
       const stateChangeId = ++authStateChangeId;
+      let usernameNeedsAttention = false;
       setOwnerAccess(false);
       if (user && !user.isAnonymous) {
         try {
@@ -524,6 +525,13 @@
             ownerAccessMessage.textContent = 'Signed in, but your user profile could not be saved.';
           }
         }
+        try {
+          const username = await window.accountUsernames.ensure(user);
+          usernameNeedsAttention = !username;
+        } catch (error) {
+          console.error('Could not verify account username:', error);
+          usernameNeedsAttention = true;
+        }
       }
       if (stateChangeId !== authStateChangeId) return;
       if (!user) {
@@ -532,7 +540,17 @@
         ownerSignUpLink.style.display = '';
         ownerSignOut.hidden = true;
       } else {
-        ownerUserInfo.textContent = `Signed in as ${user.displayName || user.email || 'user'}`;
+        try {
+          const usernameSnapshot = await usersRef.child(user.uid).child('username').once('value');
+          if (stateChangeId !== authStateChangeId) return;
+          const username = usernameSnapshot.val();
+          ownerUserInfo.textContent = username && !usernameNeedsAttention
+            ? `Signed in as @${username}`
+            : 'Username needs attention (visit Settings)';
+        } catch (error) {
+          console.error('Could not load account username:', error);
+          ownerUserInfo.textContent = 'Could not load account username';
+        }
         ownerSignInLink.style.display = 'none';
         ownerSignUpLink.style.display = 'none';
         ownerSignOut.hidden = false;

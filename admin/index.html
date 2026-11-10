@@ -78,6 +78,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="/GimkitWeb/account-usernames.js"></script>
   <script>
     const firebaseConfig = {
       apiKey: "AIzaSyDq6eOzOWLd88XG-wFo0LN1O3l2Yyvdfls",
@@ -134,7 +135,6 @@
 
     function saveUserProfile(user) {
       const profile = { updatedAt: Date.now() };
-      if (user.displayName) profile.username = user.displayName;
       if (user.email) profile.email = user.email.toLowerCase();
       return usersRef.child(user.uid).update(profile);
     }
@@ -330,6 +330,7 @@
     let authStateChangeId = 0;
     auth.onAuthStateChanged(async user => {
       const stateChangeId = ++authStateChangeId;
+      let usernameNeedsAttention = false;
       setDataAccess(false);
       if (user && !user.isAnonymous) {
         try {
@@ -339,6 +340,13 @@
           if (stateChangeId === authStateChangeId) {
             adminAccessMessage.textContent = 'Signed in, but your user profile could not be saved.';
           }
+        }
+        try {
+          const username = await window.accountUsernames.ensure(user);
+          usernameNeedsAttention = !username;
+        } catch (error) {
+          console.error('Could not verify account username:', error);
+          usernameNeedsAttention = true;
         }
       }
       if (stateChangeId !== authStateChangeId) return;
@@ -374,8 +382,17 @@
         return;
       }
 
-      const name = user.displayName || user.email || 'Signed in user';
-      userInfo.textContent = 'Signed in as ' + name;
+      try {
+        const usernameSnapshot = await db.ref(`users/${user.uid}/username`).once('value');
+        if (stateChangeId !== authStateChangeId) return;
+        const username = usernameSnapshot.val();
+        userInfo.textContent = username && !usernameNeedsAttention
+          ? `Signed in as @${username}`
+          : 'Username needs attention (visit Settings)';
+      } catch (error) {
+        console.error('Could not load account username:', error);
+        userInfo.textContent = 'Could not load account username';
+      }
       signInLink.style.display = 'none';
       signUpLink.style.display = 'none';
       signOutBtn.style.display = '';
