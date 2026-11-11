@@ -35,6 +35,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="/GimkitWeb/account-usernames.js"></script>
 </head>
 <body>
   <div id="scoreAuthNav">
@@ -110,11 +111,7 @@
             <option value="Dont Look Down">Dont Look Down</option>
           </select>
         </label>
-        <label for="scoreboardUsernameInput">Your scoreboard username
-          <input id="scoreboardUsernameInput" type="text" maxlength="80" autocomplete="nickname" required />
-        </label>
-        <button id="saveScoreboardUsername" type="button">Save username</button>
-        <p class="small">Choose a scoreboard name independently of your sign-in account. It is saved to your account for your skill chart.</p>
+        <p id="scoreboardUsernameDisplay" class="small" role="status" aria-live="polite"></p>
         <p class="small">Enter every player’s Gimkit Community username and finishing place. Tied places are allowed.</p>
         <div id="matchPlayers">
           <div class="match-player">

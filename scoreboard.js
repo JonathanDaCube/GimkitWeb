@@ -24,12 +24,15 @@
           typeof player.username !== 'string' ||
           !player.username.trim() ||
           player.username.trim().length > 80 ||
+          (player.uid !== undefined && typeof player.uid !== 'string') ||
           !Number.isInteger(player.place) ||
           player.place < 1 ||
           player.place > players.length) {
         return false;
       }
-      const key = playerKey(player.username);
+      const usernameKey = playerKey(player.username);
+      const uid = player.uid || usernameIndex[usernameIndexKey(player.username)];
+      const key = uid ? `uid:${uid}` : `name:${usernameKey}`;
       if (seenPlayers.has(key)) return false;
       seenPlayers.add(key);
       return true;
@@ -48,6 +51,10 @@
     return Array.from(new TextEncoder().encode(normalized), byte => byte.toString(16).padStart(2, '0')).join('');
   }
 
+  function usernameIndexKey(username) {
+    return username.trim().toLowerCase();
+  }
+
   function aggregateRatings(snapshot) {
     const matches = [];
     snapshot.forEach(child => {
@@ -61,17 +68,19 @@
       const entrants = [];
       const seenPlayers = new Set();
       Object.values(match.players).forEach(result => {
-        const key = playerKey(result.username);
+        const usernameKey = playerKey(result.username);
+        const uid = result.uid || usernameIndex[usernameIndexKey(result.username)] || null;
+        const key = uid || `name:${usernameKey}`;
         if (seenPlayers.has(key)) return;
         seenPlayers.add(key);
         const player = players.get(key) || {
           key,
-          username: result.username.trim(),
+          username: uid ? usernameDirectory[uid] || result.username.trim() : result.username.trim(),
           modeScores: Object.fromEntries(gameModes.map(game => [game, 50])),
           scoredModes: Object.fromEntries(gameModes.map(game => [game, false])),
           latestAt: 0
         };
-        player.username = result.username.trim();
+        player.username = uid ? usernameDirectory[uid] || result.username.trim() : result.username.trim();
         entrants.push({ key, place: result.place, rating: player.modeScores[match.game] });
         players.set(key, player);
       });
@@ -127,8 +136,9 @@
     });
   }
 
-  function renderPublicScoreboard(snapshot) {
-    const players = aggregateRatings(snapshot);
+  function renderPublicScoreboard() {
+    if (!latestMatchSnapshot) return;
+    const players = aggregateRatings(latestMatchSnapshot);
     latestPlayers = players;
     renderSkillChart();
     renderLeaderboard(document.getElementById('homeScoreboardList'), players, null, 5);
@@ -149,8 +159,7 @@
   const scoreSubmitButton = document.getElementById('scoreSubmitButton');
   const matchPlayers = document.getElementById('matchPlayers');
   const addMatchPlayerButton = document.getElementById('addMatchPlayer');
-  const scoreboardUsernameInput = document.getElementById('scoreboardUsernameInput');
-  const saveScoreboardUsernameButton = document.getElementById('saveScoreboardUsername');
+  const scoreboardUsernameDisplay = document.getElementById('scoreboardUsernameDisplay');
   const skillRadar = document.getElementById('skillRadar');
   const skillRadarGrid = document.getElementById('skillRadarGrid');
   const skillArea = document.getElementById('skillArea');
@@ -159,56 +168,19 @@
   const skillModeValues = document.getElementById('skillModeValues');
   let activeUserUid = null;
   let authStateChangeId = 0;
+  let currentUsername = '';
   let skillPlayerKey = null;
   let latestPlayers = [];
-
-  async function saveScoreboardUsername(user) {
-    const username = scoreboardUsernameInput.value.trim();
-    if (!username || username.length > 80) {
-      scoreSubmissionStatus.textContent = 'Enter a scoreboard username up to 80 characters.';
-      return false;
-    }
-    await db.ref(`users/${user.uid}/scoreboardUsername`).set(username);
-    skillPlayerKey = playerKey(username);
-    renderSkillChart();
-    scoreSubmissionStatus.textContent = 'Scoreboard username saved.';
-    return true;
-  }
-
-  if (scoreboardUsernameInput) {
-    scoreboardUsernameInput.addEventListener('input', () => {
-      const username = scoreboardUsernameInput.value.trim();
-      skillPlayerKey = username ? playerKey(username) : null;
-      renderSkillChart();
-      if (matchPlayers) {
-        const firstPlayerInput = matchPlayers.querySelector('[data-player-name]');
-        if (firstPlayerInput) firstPlayerInput.value = username;
-      }
-    });
-  }
-
-  if (saveScoreboardUsernameButton) {
-    saveScoreboardUsernameButton.addEventListener('click', async () => {
-      const user = auth.currentUser;
-      if (!user || user.isAnonymous || !user.emailVerified) {
-        scoreSubmissionStatus.textContent = 'Sign in with a verified account to save your scoreboard username.';
-        return;
-      }
-      saveScoreboardUsernameButton.disabled = true;
-      try {
-        await saveScoreboardUsername(user);
-      } catch (error) {
-        console.error('Could not save scoreboard username:', error);
-        scoreSubmissionStatus.textContent = 'Could not save your scoreboard username. Try again.';
-      } finally {
-        saveScoreboardUsernameButton.disabled = false;
-      }
-    });
-  }
+  let usernameIndex = {};
+  let usernameDirectory = {};
+  let latestMatchSnapshot = null;
 
   initializeSkillRadar();
 
-  eloMatchesRef.on('value', renderPublicScoreboard, error => {
+  eloMatchesRef.on('value', snapshot => {
+    latestMatchSnapshot = snapshot;
+    renderPublicScoreboard();
+  }, error => {
     console.error('Could not load approved match results:', error);
     ['homeScoreboardList', 'scoreboardTotalList', ...gameModes.map(game => `scoreboard${game.replaceAll(' ', '')}List`)].forEach(id => {
       const container = document.getElementById(id);
@@ -221,6 +193,14 @@
     if (skillChartStatus) skillChartStatus.textContent = 'The Elo chart is temporarily unavailable.';
     if (skillRadar) skillRadar.hidden = true;
   });
+  db.ref('usernameIndex').on('value', snapshot => {
+    usernameIndex = snapshot.val() || {};
+    if (latestMatchSnapshot) renderPublicScoreboard();
+  }, error => console.error('Could not load username registry:', error));
+  db.ref('usernameDirectory').on('value', snapshot => {
+    usernameDirectory = snapshot.val() || {};
+    if (latestMatchSnapshot) renderPublicScoreboard();
+  }, error => console.error('Could not load public usernames:', error));
 
   function skillChartPoint(value, index, radius) {
     const angle = -Math.PI / 2 + (2 * Math.PI * index) / gameModes.length;
@@ -312,7 +292,10 @@
       const item = document.createElement('li');
       const roster = Object.values(entry.players || {})
         .sort((a, b) => a.place - b.place)
-        .map(player => `${player.place}. ${player.username}`)
+        .map(player => {
+          const uid = player.uid || usernameIndex[usernameIndexKey(player.username)];
+          return `${player.place}. ${uid ? usernameDirectory[uid] || player.username : player.username}`;
+        })
         .join(', ');
       item.textContent = `${entry.game}: ${roster} — ${entry.status || 'pending'}`;
       myScoreSubmissions.appendChild(item);
@@ -404,15 +387,15 @@
         place: Number(row.querySelector('[data-player-place]').value)
       }));
       const normalizedNames = players.map(player => player.username.toLocaleLowerCase());
-      const submitterUsername = scoreboardUsernameInput.value.trim();
+      const submitterUsername = currentUsername;
       if (!isAllowedGame(game) || players.length < 2 || players.length > 20 ||
           players.some(player => !player.username || player.username.length > 80 ||
             !Number.isInteger(player.place) || player.place < 1 || player.place > players.length) ||
           new Set(normalizedNames).size !== normalizedNames.length ||
           !submitterUsername || submitterUsername.length > 80 ||
-          !players.some(player => playerKey(player.username) === playerKey(submitterUsername)) ||
+          !players.some(player => player.username === submitterUsername) ||
           !players.some(player => player.place === 1)) {
-        scoreSubmissionStatus.textContent = 'Choose a scoreboard username and enter 2–20 unique player usernames, including your own scoreboard username, with valid finishing places and a first-place result.';
+        scoreSubmissionStatus.textContent = 'Enter 2–20 unique usernames, including your account username, with valid finishing places and a first-place result.';
         return;
       }
 
@@ -425,21 +408,21 @@
           return;
         }
         await auth.currentUser.getIdToken(true);
-        await db.ref(`users/${user.uid}/scoreboardUsername`).set(submitterUsername);
-        skillPlayerKey = playerKey(submitterUsername);
-        renderSkillChart();
         const submission = {
           submitterUid: user.uid,
           game,
-          players: Object.fromEntries(players.map((player, index) => [String(index + 1), player])),
+          players: Object.fromEntries(players.map((player, index) => [String(index + 1), {
+            ...player,
+            uid: player.username === currentUsername ? user.uid : usernameIndex[usernameIndexKey(player.username)] || null
+          }])),
           submittedAt: Date.now(),
           status: 'pending'
         };
         await matchSubmissionRoot.child(user.uid).push().set(submission);
         scoreSubmissionForm.reset();
         matchPlayers.querySelectorAll('.match-player').forEach(row => row.remove());
-        scoreboardUsernameInput.value = submitterUsername;
         matchPlayers.appendChild(createPlayerRow(submitterUsername));
+        matchPlayers.querySelector('[data-player-name]').readOnly = true;
         matchPlayers.appendChild(createPlayerRow());
         updatePlayerRowControls();
         scoreSubmissionStatus.textContent = 'Match submitted. Elo ratings will update after admin approval.';
@@ -513,9 +496,12 @@
       const details = document.createElement('span');
       const roster = Object.values(submission.players)
         .sort((a, b) => a.place - b.place)
-        .map(player => `${player.place}. ${player.username}`)
+        .map(player => {
+          const uid = player.uid || usernameIndex[usernameIndexKey(player.username)];
+          return `${player.place}. ${uid ? usernameDirectory[uid] || player.username : player.username}`;
+        })
         .join(', ');
-      details.textContent = `${submission.game} — ${roster} (submitted by ${submission.uid.slice(0, 8)})`;
+      details.textContent = `${submission.game} — ${roster} (submitted by @${usernameDirectory[submission.uid] || submission.uid.slice(0, 8)})`;
       const actions = document.createElement('span');
       const approveButton = document.createElement('button');
       approveButton.type = 'button';
@@ -631,11 +617,15 @@
   if (scoreSubmissionForm || scoreUserInfo || scoreSignInLink || scoreSignUpLink || myScoreSubmissions) {
     auth.onAuthStateChanged(async user => {
       const stateChangeId = ++authStateChangeId;
+      currentUsername = '';
       skillPlayerKey = null;
       renderSkillChart();
-      if (scoreboardUsernameInput) scoreboardUsernameInput.value = '';
+      if (scoreboardUsernameDisplay) scoreboardUsernameDisplay.textContent = '';
+      if (matchPlayers && matchPlayers.querySelector('[data-player-name]')) {
+        matchPlayers.querySelector('[data-player-name]').readOnly = false;
+      }
       if (user && !user.isAnonymous && user.email) {
-        scoreUserInfo.textContent = `Signed in as ${user.displayName || user.email}`;
+        scoreUserInfo.textContent = 'Loading account username...';
         scoreSignInLink.hidden = true;
         scoreSignUpLink.hidden = true;
         scoreSignOut.hidden = false;
@@ -667,26 +657,45 @@
       if (stateChangeId !== authStateChangeId) return;
       const currentUser = auth.currentUser;
       if (currentUser && currentUser.uid === user.uid && currentUser.emailVerified) {
-        let scoreboardUsername = '';
+        let usernameNeedsAttention = false;
         try {
-          const usernameSnapshot = await db.ref(`users/${currentUser.uid}/scoreboardUsername`).once('value');
-          scoreboardUsername = usernameSnapshot.val() || '';
+          const username = await window.accountUsernames.ensure(currentUser);
+          usernameNeedsAttention = !username;
         } catch (error) {
-          console.error('Could not load scoreboard username:', error);
+          console.error('Could not verify account username:', error);
+          usernameNeedsAttention = true;
+        }
+        let accountUsername = '';
+        try {
+          const usernameSnapshot = await db.ref(`users/${currentUser.uid}/username`).once('value');
+          accountUsername = usernameSnapshot.val() || '';
+        } catch (error) {
+          console.error('Could not load account username:', error);
           if (scoreSubmissionAccess) {
-            scoreSubmissionAccess.textContent = 'Could not load your scoreboard profile. Refresh the page and try again.';
+            scoreSubmissionAccess.textContent = 'Could not load your account username. Refresh the page and try again.';
           }
           return;
         }
         if (stateChangeId !== authStateChangeId) return;
-        if (scoreboardUsernameInput) scoreboardUsernameInput.value = scoreboardUsername;
-        skillPlayerKey = scoreboardUsername ? playerKey(scoreboardUsername) : null;
+        currentUsername = usernameNeedsAttention ? '' : accountUsername;
+        skillPlayerKey = currentUsername ? currentUser.uid : null;
+        if (scoreboardUsernameDisplay) {
+          scoreboardUsernameDisplay.textContent = currentUsername
+            ? `Submitting as @${currentUsername}.`
+            : 'Choose a unique account username in Settings before submitting.';
+        }
+        scoreUserInfo.textContent = currentUsername
+          ? `Signed in as @${currentUsername}`
+          : 'Username not set (visit Settings)';
         renderSkillChart();
         if (scoreSubmissionForm) {
-          scoreSubmissionForm.hidden = false;
-          scoreSubmissionAccess.textContent = 'Your match stays private until an admin approves it.';
+          scoreSubmissionForm.hidden = !currentUsername;
+          scoreSubmissionAccess.textContent = currentUsername
+            ? 'Your match stays private until an admin approves it.'
+            : 'Set your unique account username in Settings to submit matches.';
           if (matchPlayers.querySelector('[data-player-name]')) {
-            matchPlayers.querySelector('[data-player-name]').value = scoreboardUsername;
+            matchPlayers.querySelector('[data-player-name]').value = currentUsername;
+            matchPlayers.querySelector('[data-player-name]').readOnly = Boolean(currentUsername);
           }
         }
         watchMySubmissions(currentUser);

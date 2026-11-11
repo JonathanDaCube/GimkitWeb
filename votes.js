@@ -404,9 +404,18 @@
   auth.onAuthStateChanged(async user => {
     const sequence = ++authSequence;
     currentUser = user && !user.isAnonymous ? user : null;
-    voteUserInfo.textContent = currentUser
-      ? `Signed in as ${currentUser.displayName || currentUser.email || 'user'}.`
-      : '';
+    let usernameNeedsAttention = false;
+    if (currentUser) {
+      try {
+        const username = await window.accountUsernames.ensure(currentUser);
+        usernameNeedsAttention = !username;
+      } catch (error) {
+        console.error('Could not verify account username:', error);
+        usernameNeedsAttention = true;
+      }
+      if (sequence !== authSequence) return;
+    }
+    voteUserInfo.textContent = currentUser ? 'Loading account username...' : '';
     voteSignIn.hidden = Boolean(currentUser);
     voteSignUp.hidden = Boolean(currentUser);
     voteSignOut.hidden = !currentUser;
@@ -423,6 +432,18 @@
       }
     } else {
       isAdmin = isOwner;
+    }
+    if (currentUser) {
+      try {
+        const usernameSnapshot = await db.ref(`users/${currentUser.uid}/username`).once('value');
+        if (sequence !== authSequence) return;
+        voteUserInfo.textContent = usernameSnapshot.val() && !usernameNeedsAttention
+          ? `Signed in as @${usernameSnapshot.val()}.`
+          : 'Username needs attention (visit Settings).';
+      } catch (error) {
+        console.error('Could not load account username:', error);
+        voteUserInfo.textContent = 'Could not load account username.';
+      }
     }
     if (sequence !== authSequence) return;
     proposalSection.hidden = !isAdmin;

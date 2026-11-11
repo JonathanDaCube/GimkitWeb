@@ -9,16 +9,18 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <script src="/GimkitWeb/account-usernames.js"></script>
 </head>
 <body>
   <a id="backLink" href="/GimkitWeb/">← Back to site</a>
   <h1>Create account</h1>
 
   <form id="signUpForm" onsubmit="return false;">
-    <input id="username" type="text" placeholder="Username" autocomplete="nickname" />
-    <input id="email" type="email" placeholder="Email" autocomplete="username" />
-    <input id="password" type="password" placeholder="Password" autocomplete="new-password" />
+    <input id="username" type="text" placeholder="Unique username (3-20 letters, numbers, _ or -)" minlength="3" maxlength="20" pattern="[A-Za-z0-9_-]{3,20}" autocomplete="nickname" autocapitalize="none" required />
+    <input id="email" type="email" placeholder="Email (used to sign in)" autocomplete="username" required />
+    <input id="password" type="password" placeholder="Password" autocomplete="new-password" required />
     <button id="signUpBtn" class="primary-button" type="button">Create account</button>
+    <p id="signUpStatus" role="status" aria-live="polite"></p>
   </form>
 
   <script>
@@ -35,7 +37,6 @@
 
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
-    const db = firebase.database();
     const authPersistence = auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
     authPersistence.catch(error => console.error('Could not set authentication persistence:', error));
     const defaultReturnTo = "/GimkitWeb/";
@@ -59,40 +60,32 @@
       window.location.href = returnTo;
     }
 
-    function saveUserProfile(user, username, createdAt) {
-      const profile = { updatedAt: Date.now() };
-      const displayName = username || user.displayName;
-      if (displayName) profile.username = displayName;
-      if (user.email) profile.email = user.email.toLowerCase();
-      if (createdAt) profile.createdAt = createdAt;
-      return db.ref("users/" + user.uid).update(profile);
-    }
-
     document.getElementById("signUpBtn").addEventListener("click", async () => {
       const username = document.getElementById("username").value.trim();
       const email = document.getElementById("email").value.trim();
       const password = document.getElementById("password").value;
+      const status = document.getElementById("signUpStatus");
 
       try {
+        window.accountUsernames.validate(username);
+        if (!email || !password) throw new Error("Enter an email and password.");
         await authPersistence;
-        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
-        const user = userCredential.user;
-        await user.updateProfile({ displayName: username });
-        await saveUserProfile(user, username, Date.now());
+        let user = auth.currentUser;
+        if (!user || user.email !== email.toLowerCase()) {
+          try {
+            const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+            user = userCredential.user;
+          } catch (error) {
+            if (error.code !== "auth/email-already-in-use") throw error;
+            const userCredential = await auth.signInWithEmailAndPassword(email, password);
+            user = userCredential.user;
+          }
+        }
+        await window.accountUsernames.claim(username, user);
         finishSignUp();
       } catch (err) {
-        if (err.code === "auth/email-already-in-use") {
-          try {
-            await authPersistence;
-            const userCredential = await auth.signInWithEmailAndPassword(email, password);
-            await saveUserProfile(userCredential.user);
-            finishSignUp();
-          } catch (signErr) {
-            alert(signErr.message);
-          }
-        } else {
-          alert(err.message);
-        }
+        console.error("Could not create account or reserve username:", err);
+        status.textContent = err.message || "Could not create the account. Try again.";
       }
     });
   </script>

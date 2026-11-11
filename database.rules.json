@@ -115,15 +115,42 @@
       ".read": "auth != null && auth.token.email == 'jonathanlam0820@gmail.com' && auth.token.email_verified == true",
       "$uid": {
         ".read": "auth != null && auth.uid == $uid && auth.token.firebase.sign_in_provider != 'anonymous'",
-        ".write": "auth != null && auth.uid == $uid && auth.token.firebase.sign_in_provider != 'anonymous'",
+        "username": {
+          ".write": "auth != null && auth.uid == $uid && auth.token.firebase.sign_in_provider != 'anonymous' && root.child('usernameIndex').child(newData.val()).val() == auth.uid",
+          ".validate": "newData.isString() && newData.val().matches(/^[a-z0-9_-]{3,20}$/)"
+        },
+        "email": {
+          ".write": "auth != null && auth.uid == $uid && auth.token.firebase.sign_in_provider != 'anonymous'",
+          ".validate": "newData.isString()"
+        },
+        "updatedAt": {
+          ".write": "auth != null && auth.uid == $uid && auth.token.firebase.sign_in_provider != 'anonymous'",
+          ".validate": "newData.isNumber()"
+        },
         "settings": {
+          ".write": "auth != null && auth.uid == $uid && auth.token.firebase.sign_in_provider != 'anonymous'",
           "disablePopups": {
             ".validate": "newData.isBoolean()"
           }
         },
-        "scoreboardUsername": {
-          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 80"
+        "createdAt": {
+          ".write": "auth != null && auth.uid == $uid && auth.token.firebase.sign_in_provider != 'anonymous'",
+          ".validate": "newData.isNumber()"
         }
+      }
+    },
+    "usernameIndex": {
+      ".read": true,
+      "$username": {
+        ".write": "auth != null && auth.token.firebase.sign_in_provider != 'anonymous' && newData.val() == auth.uid && (!data.exists() || data.val() == auth.uid)",
+        ".validate": "newData.isString() && $username.matches(/^[a-z0-9_-]{3,20}$/)"
+      }
+    },
+    "usernameDirectory": {
+      ".read": true,
+      "$uid": {
+        ".write": "auth != null && auth.uid == $uid && auth.token.firebase.sign_in_provider != 'anonymous' && root.child('usernameIndex').child(newData.val()).val() == auth.uid",
+        ".validate": "newData.isString() && newData.val().matches(/^[a-z0-9_-]{3,20}$/)"
       }
     }
   }
