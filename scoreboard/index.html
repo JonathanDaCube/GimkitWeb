@@ -63,11 +63,16 @@
     </section>
 
     <section class="score-section" aria-labelledby="scoreboardHeading">
-      <h2 id="scoreboardHeading">Leaderboard</h2>
+      <h2 id="scoreboardHeading">Leaderboards</h2>
+      <p class="small">Each player earns one participation point for every approved match, regardless of game mode or placement.</p>
       <div class="leaderboard-grid">
         <section class="leaderboard-mode" aria-labelledby="totalLeaderboardHeading">
           <h3 id="totalLeaderboardHeading">Average Elo</h3>
           <ol id="scoreboardTotalList" class="leaderboard-list" aria-live="polite"><li>Loading scoreboard…</li></ol>
+        </section>
+        <section class="leaderboard-mode" aria-labelledby="participationLeaderboardHeading">
+          <h3 id="participationLeaderboardHeading">Participation</h3>
+          <ol id="scoreboardParticipationList" class="leaderboard-list" aria-live="polite"><li>Loading scoreboard…</li></ol>
         </section>
         <section class="leaderboard-mode" aria-labelledby="fishtopiaLeaderboardHeading">
           <h3 id="fishtopiaLeaderboardHeading">Fishtopia</h3>

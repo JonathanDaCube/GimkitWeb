@@ -78,6 +78,7 @@
           username: uid ? usernameDirectory[uid] || result.username.trim() : result.username.trim(),
           modeScores: Object.fromEntries(gameModes.map(game => [game, 50])),
           scoredModes: Object.fromEntries(gameModes.map(game => [game, false])),
+          participation: 0,
           latestAt: 0
         };
         player.username = uid ? usernameDirectory[uid] || result.username.trim() : result.username.trim();
@@ -100,6 +101,7 @@
       });
       entrants.forEach(entrant => {
         const player = players.get(entrant.key);
+        player.participation += 1;
         player.scoredModes[match.game] = true;
         player.latestAt = Math.max(player.latestAt, match.approvedAt || 0);
         player.modeScores[match.game] = Math.max(0, player.modeScores[match.game] + deltas.get(entrant.key));
@@ -136,6 +138,25 @@
     });
   }
 
+  function renderParticipationLeaderboard(container, players) {
+    if (!container) return;
+    container.replaceChildren();
+    const rankedPlayers = [...players].sort((a, b) =>
+      b.participation - a.participation || a.username.localeCompare(b.username)
+    );
+    if (!rankedPlayers.length) {
+      const empty = document.createElement('li');
+      empty.textContent = 'No approved match results yet.';
+      container.appendChild(empty);
+      return;
+    }
+    rankedPlayers.forEach((player, index) => {
+      const item = document.createElement('li');
+      item.textContent = `${index + 1}. ${player.username} — ${numberFormat.format(player.participation)} ${player.participation === 1 ? 'point' : 'points'}`;
+      container.appendChild(item);
+    });
+  }
+
   function renderPublicScoreboard() {
     if (!latestMatchSnapshot) return;
     const players = aggregateRatings(latestMatchSnapshot);
@@ -143,6 +164,7 @@
     renderSkillChart();
     renderLeaderboard(document.getElementById('homeScoreboardList'), players, null, 5);
     renderLeaderboard(document.getElementById('scoreboardTotalList'), players, null);
+    renderParticipationLeaderboard(document.getElementById('scoreboardParticipationList'), players);
     gameModes.forEach(game => {
       renderLeaderboard(document.getElementById(`scoreboard${game.replaceAll(' ', '')}List`), players, game);
     });
@@ -182,7 +204,7 @@
     renderPublicScoreboard();
   }, error => {
     console.error('Could not load approved match results:', error);
-    ['homeScoreboardList', 'scoreboardTotalList', ...gameModes.map(game => `scoreboard${game.replaceAll(' ', '')}List`)].forEach(id => {
+    ['homeScoreboardList', 'scoreboardTotalList', 'scoreboardParticipationList', ...gameModes.map(game => `scoreboard${game.replaceAll(' ', '')}List`)].forEach(id => {
       const container = document.getElementById(id);
       if (!container) return;
       container.replaceChildren();
