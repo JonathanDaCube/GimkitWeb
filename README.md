@@ -17,3 +17,13 @@ The participation leaderboard awards one point to each player in every approved 
 ## Account settings
 
 The Settings page lets signed-in users choose a unique account username, disable automatic vote popups across their account, and request a password reset email. Usernames are globally reserved and displayed throughout the site; email remains the sign-in identifier. Usernames must be 3-20 lowercase letters, numbers, underscores, or hyphens. Username changes preserve Elo history, and prior names remain reserved as aliases to the same account. Existing accounts claim their current username the next time they sign in or visit an authenticated page; a conflicting or invalid legacy name must be changed in Settings.
+
+## Windows meeting notifications
+
+The optional companion checks the public meeting lists and shows a Windows notification when an active meeting is added or a scheduled meeting starts. It does not need a Firebase account, Cloud Functions, or a paid Firebase plan.
+
+1. Install Node.js 18 or newer on Windows and download this repository.
+2. In a terminal opened in the repository folder, run `node companion\index.js`.
+3. Keep the companion running, even after closing the website. Stop it with Ctrl+C. To start it automatically, configure Windows Task Scheduler to run the same command at sign-in in your interactive user session.
+
+The first successful check ignores already-active meetings and past scheduled meetings; future scheduled meetings are watched. Later checks run about every 10 seconds, plus notification and network time. Run only one copy at a time. State is kept in `%LOCALAPPDATA%\GimkitWebNotifications\state.json`, so meetings already notified are not repeated after restarting. The app catches up on entries still present after an outage, but cannot recover meetings removed before it checks. It only works while Windows is awake, the user is signed in, and the companion is running. Windows notification settings and Do Not Disturb can suppress notifications. Firebase free-plan usage limits still apply.
