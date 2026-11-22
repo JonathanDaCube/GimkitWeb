@@ -423,8 +423,14 @@
         const link = prompt('Enter meeting link (https://...) for "' + item.title + '"');
         if (!link) return;
         const newRef = activeMeetingsRef.push();
-        await newRef.set({ title: item.title, link, scheduledAt: item.scheduledAt, createdAt: Date.now() }).catch(err => console.error('Activate failed:', err));
-        scheduledMeetingsRef.child(item.key).remove().catch(err => console.error('Failed to remove scheduled:', err));
+        try {
+          await db.ref().update({
+            ['activeMeetings/' + newRef.key]: { title: item.title, link, scheduledAt: item.scheduledAt, scheduledMeetingId: item.key, createdAt: Date.now() },
+            ['scheduledMeetings/' + item.key]: null
+          });
+        } catch (err) {
+          console.error('Activate failed:', err);
+        }
       });
 
       const removeBtn = document.createElement('button');
