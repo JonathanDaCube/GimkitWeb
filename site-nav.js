@@ -51,7 +51,7 @@
       !user.isAnonymous &&
       user.emailVerified &&
       user.email &&
-      user.email.toLowerCase() === 'jonathanlam0820@gmail.com'
+      user.email.toLowerCase() === 'jonathandacube@gmail.com'
     );
     if (ownerLink) ownerLink.hidden = !isOwner;
     if (adminLink) adminLink.hidden = !isOwner;
