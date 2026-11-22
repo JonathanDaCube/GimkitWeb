@@ -1,1 +1,5 @@
 node_modules/
+companion/bin/
+companion/obj/
+tests/MeetingCompanionTests/bin/
+tests/MeetingCompanionTests/obj/
