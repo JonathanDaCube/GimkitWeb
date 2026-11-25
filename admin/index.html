@@ -326,7 +326,7 @@
       });
     }
 
-    const OWNER_EMAIL = 'jonathandacube@gmail.com';
+    const OWNER_EMAILS = ['jonathandacube@gmail.com', 'jonathanlam0820@gmail.com'];
     let authStateChangeId = 0;
     auth.onAuthStateChanged(async user => {
       const stateChangeId = ++authStateChangeId;
@@ -355,7 +355,7 @@
         !user.isAnonymous &&
         user.emailVerified &&
         user.email &&
-        user.email.toLowerCase() === OWNER_EMAIL
+        OWNER_EMAILS.includes(user.email.toLowerCase())
       );
       let isAdmin = isOwner;
       if (user && !user.isAnonymous && user.emailVerified && !isOwner) {

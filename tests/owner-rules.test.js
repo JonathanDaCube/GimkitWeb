@@ -18,6 +18,8 @@ test('Firebase rules grant owner roles only to verified matching accounts', {
     return db;
   }
   const bootstrap = client('bootstrap', 'jonathandacube@gmail.com');
+  const oldBootstrap = client('old-bootstrap', 'jonathanlam0820@gmail.com');
+  const unverifiedBootstrap = client('unverified-bootstrap', 'jonathanlam0820@gmail.com', false);
   const owner = client('owner', 'owner@example.com');
   const admin = client('admin', 'admin@example.com');
   const legacy = client('legacy', 'legacy@example.com');
@@ -36,6 +38,12 @@ test('Firebase rules grant owner roles only to verified matching accounts', {
     });
     await get(ref(owner, 'admins'));
     await get(ref(owner, 'users'));
+    await get(ref(oldBootstrap, 'admins'));
+    await get(ref(oldBootstrap, 'users'));
+    await set(ref(oldBootstrap, 'admins/admin/owner'), true);
+    await set(ref(oldBootstrap, 'admins/admin/owner'), false);
+    await denied(get(ref(unverifiedBootstrap, 'admins')));
+    await denied(set(ref(unverifiedBootstrap, 'admins/admin/owner'), true));
     await set(ref(owner, 'admins/admin/owner'), true);
     await set(ref(owner, 'admins/admin/owner'), false);
     await denied(set(ref(owner, 'admins/admin/owner'), 'true'));
@@ -53,6 +61,7 @@ test('Firebase rules grant owner roles only to verified matching accounts', {
       createdAt: now, approvedAt: now, approvedBy: 'owner'
     };
     await set(ref(owner, 'voteCatalog/owner-vote'), vote);
+    await set(ref(oldBootstrap, 'voteCatalog/old-owner-vote'), vote);
     await denied(set(ref(admin, 'voteCatalog/admin-vote'), vote));
     await set(ref(admin, 'news/example'), { title: 'News' });
     await set(ref(legacy, 'news/legacy'), { title: 'News' });

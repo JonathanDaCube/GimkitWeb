@@ -213,7 +213,7 @@
       !user.isAnonymous &&
       user.emailVerified &&
       user.email &&
-      user.email.toLowerCase() === 'jonathandacube@gmail.com'
+      ['jonathandacube@gmail.com', 'jonathanlam0820@gmail.com'].includes(user.email.toLowerCase())
     );
     let isAdmin = isOwner;
     if (user && !user.isAnonymous && user.emailVerified && !isOwner) {

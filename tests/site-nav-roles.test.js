@@ -67,6 +67,12 @@ test('owner flag requires matching verified account; legacy admins remain admins
   nav.signIn(user('bootstrap', 'jonathandacube@gmail.com'));
   assert.equal(nav.admin(), true);
   assert.equal(nav.owner(), true);
+  nav.signIn(user('old-bootstrap', 'jonathanlam0820@gmail.com'));
+  assert.equal(nav.admin(), true);
+  assert.equal(nav.owner(), true);
+  nav.signIn(user('old-bootstrap', 'jonathanlam0820@gmail.com', false));
+  assert.equal(nav.admin(), false);
+  assert.equal(nav.owner(), false);
 });
 
 test('late role lookups cannot reveal links after sign-out', async () => {

@@ -20,9 +20,9 @@ The Settings page lets signed-in users choose a unique account username, disable
 
 ## Owner and admin access
 
-The verified `jonathandacube@gmail.com` account is the bootstrap owner. Owners can grant admins access and promote them to owners from Owner Mode; an owner can manage other owners too. Firebase stores the role under `admins/<uid>` with a matching email and `owner: true` for owners or `owner: false` for admins. Existing admin records without the field remain admins. All privileged users must sign in with the matching verified email.
+The verified `jonathandacube@gmail.com` and `jonathanlam0820@gmail.com` accounts are bootstrap owners. Owners can grant admins access and promote them to owners from Owner Mode; an owner can manage other owners too. Firebase stores the role under `admins/<uid>` with a matching email and `owner: true` for owners or `owner: false` for admins. Existing admin records without the field remain admins. All privileged users must sign in with the matching verified email.
 
-Deploy both the website and `database.rules.json` (`firebase deploy --only database`) for role changes to take effect. If Owner Mode says the signed-in email is unverified, verify the email and sign out and back in. Adding an owner record does not bypass email verification or create an initial owner: if the bootstrap account cannot sign in as verified, resolve that account in Firebase Authentication first.
+Deploy both the website and `database.rules.json` (`firebase deploy --only database`) for role changes to take effect. If Owner Mode says the signed-in email is unverified, verify the email and sign out and back in. Adding an owner record does not bypass email verification or create an initial owner: if neither bootstrap account can sign in as verified, resolve an account in Firebase Authentication first.
 
 ## Windows meeting notifications
 
