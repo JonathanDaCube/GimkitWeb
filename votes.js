@@ -422,10 +422,12 @@
     isAdmin = false;
     isOwner = Boolean(currentUser && currentUser.emailVerified && currentUser.email &&
       currentUser.email.toLowerCase() === ownerEmail);
-    if (currentUser && currentUser.emailVerified && !isOwner) {
+    if (currentUser && currentUser.emailVerified && currentUser.email && !isOwner) {
       try {
-        const snapshot = await db.ref(`admins/${currentUser.uid}`).once('value');
-        isAdmin = Boolean(snapshot.val() && snapshot.val().email === currentUser.email.toLowerCase());
+        const snapshot = await db.ref(`admins/${user.uid}`).once('value');
+        if (sequence !== authSequence) return;
+        isAdmin = Boolean(snapshot.val() && snapshot.val().email === user.email.toLowerCase());
+        isOwner = isAdmin && snapshot.val().owner === true;
       } catch (error) {
         console.error('Could not verify voting admin access:', error);
         pageStatus.textContent = 'Could not verify admin access.';
