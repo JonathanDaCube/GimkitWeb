@@ -164,6 +164,7 @@
     googleSignInBtn.addEventListener('click', () => {
       showError('');
       const provider = new firebase.auth.GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: 'select_account' });
       authPersistence.then(() => auth.signInWithPopup(provider))
         .then(result => {
           const isNew = result.additionalUserInfo && result.additionalUserInfo.isNewUser;
