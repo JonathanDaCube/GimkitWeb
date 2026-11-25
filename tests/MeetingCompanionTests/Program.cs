@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using GimkitWebNotifications;
 
@@ -70,4 +71,68 @@ state = JsonSerializer.Deserialize<MeetingState>(oldState, MeetingEngine.JsonOpt
 Equal(true, state.SeenActive.ContainsKey("a"));
 Equal(true, state.NotifiedScheduled.ContainsKey("s"));
 Equal<long?>(null, state.LastCheckedAt);
+
+if (OperatingSystem.IsWindows())
+{
+    string temporary = Path.Combine(Path.GetTempPath(), "gimkitapp-test-" + Guid.NewGuid().ToString("N"));
+    string stateDir = Path.Combine(temporary, "GimkitWebNotifications");
+    string stateFile = Path.Combine(stateDir, "state.json");
+    string lockFile = Path.Combine(stateDir, "check.lock");
+    Directory.CreateDirectory(stateDir);
+    try
+    {
+        await File.WriteAllTextAsync(stateFile,
+            """{"version":1,"startedAt":100,"lastAttemptedAt":1000,"lastCheckedAt":2000}""");
+        Process Start(string command)
+        {
+            var start = new ProcessStartInfo(Path.Combine(AppContext.BaseDirectory, "gimkitapp.exe"))
+            {
+                WorkingDirectory = temporary,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true
+            };
+            start.Environment["LOCALAPPDATA"] = temporary;
+            start.ArgumentList.Add(command);
+            return Process.Start(start)!;
+        }
+
+        using (var last = Start("last"))
+        {
+            string output = await last.StandardOutput.ReadToEndAsync();
+            await last.WaitForExitAsync();
+            Equal(0, last.ExitCode);
+            Equal(true, output.Contains("Last check attempted:") && output.Contains("Last successful check:"));
+        }
+        using (var invalid = Start("invalid"))
+        {
+            await invalid.StandardError.ReadToEndAsync();
+            await invalid.StandardOutput.ReadToEndAsync();
+            await invalid.WaitForExitAsync();
+            Equal(2, invalid.ExitCode);
+        }
+
+        await File.WriteAllTextAsync(stateFile, "invalid json");
+        using var checkLock = new FileStream(lockFile, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+        using var check = Start("check");
+        Task exit = check.WaitForExitAsync();
+        await Task.Delay(1000);
+        bool waitedForLock = !exit.IsCompleted;
+        checkLock.Dispose();
+        string error = await check.StandardError.ReadToEndAsync();
+        await check.StandardOutput.ReadToEndAsync();
+        await exit;
+        Equal(true, waitedForLock);
+        Equal(1, check.ExitCode);
+        Equal(true, error.Contains("Notification check failed:"));
+    }
+    finally
+    {
+        File.Delete(stateFile);
+        File.Delete(lockFile);
+        Directory.Delete(stateDir);
+        Directory.Delete(temporary);
+    }
+}
 Console.WriteLine("Meeting companion tests passed.");

@@ -9,9 +9,10 @@ internal static class Program
         Environment.GetEnvironmentVariable("LOCALAPPDATA") ??
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "GimkitWebNotifications");
     private static readonly string StateFile = Path.Combine(StateDirectory, "state.json");
+    private static readonly string LockFile = Path.Combine(StateDirectory, "check.lock");
     private static readonly HttpClient Client = new() { Timeout = TimeSpan.FromSeconds(15) };
 
-    private static async Task<int> Main()
+    private static async Task<int> Main(string[] args)
     {
         if (!OperatingSystem.IsWindows())
         {
@@ -20,11 +21,35 @@ internal static class Program
         }
         try
         {
-            var state = await LoadStateAsync();
-            Console.WriteLine("Watching for meetings. Commands: check, last, help, quit.");
             using var cancellation = new CancellationTokenSource();
             Console.CancelKeyPress += (_, e) => { e.Cancel = true; cancellation.Cancel(); };
-            await CheckAsync(state);
+            if (args.Length > 1)
+            {
+                PrintHelp();
+                return 2;
+            }
+            switch (args.Length == 0 ? "watch" : args[0].ToLowerInvariant())
+            {
+                case "check":
+                    return await CheckAsync(cancellation.Token) ? 0 : 1;
+                case "last":
+                    PrintLast(await LoadStateAsync());
+                    return 0;
+                case "help":
+                case "--help":
+                case "-h":
+                    PrintHelp();
+                    return 0;
+                case "watch":
+                    break;
+                default:
+                    Console.Error.WriteLine($"Unknown command: {args[0]}");
+                    PrintHelp();
+                    return 2;
+            }
+
+            Console.WriteLine("Watching for meetings. Commands: check, last, help, quit.");
+            await CheckAsync(cancellation.Token);
             Task<string?>? input = Task.Run(() => Console.ReadLine());
             Task delay = Task.Delay(TimeSpan.FromSeconds(10), cancellation.Token);
             while (!cancellation.IsCancellationRequested)
@@ -33,7 +58,7 @@ internal static class Program
                 if (finished == delay)
                 {
                     if (cancellation.IsCancellationRequested) break;
-                    await CheckAsync(state);
+                    await CheckAsync(cancellation.Token);
                     delay = Task.Delay(TimeSpan.FromSeconds(10), cancellation.Token);
                     continue;
                 }
@@ -43,16 +68,11 @@ internal static class Program
                 {
                     case null: break;
                     case "check":
-                        await CheckAsync(state);
+                        await CheckAsync(cancellation.Token);
                         delay = Task.Delay(TimeSpan.FromSeconds(10), cancellation.Token);
                         break;
                     case "last":
-                        Console.WriteLine(state.LastAttemptedAt is long attempt
-                            ? $"Last check attempted: {DateTimeOffset.FromUnixTimeMilliseconds(attempt).ToLocalTime():F}"
-                            : "No check attempted yet.");
-                        Console.WriteLine(state.LastCheckedAt is long time
-                            ? $"Last successful check: {DateTimeOffset.FromUnixTimeMilliseconds(time).ToLocalTime():F}"
-                            : "No successful check yet.");
+                        PrintLast(await LoadStateAsync());
                         break;
                     case "help":
                         Console.WriteLine("check: check now | last: check times | quit: exit");
@@ -72,10 +92,25 @@ internal static class Program
         }
     }
 
+    private static void PrintHelp() =>
+        Console.WriteLine("Usage: gimkitapp [watch|check|last|help]\n" +
+                          "watch: continuously monitor meetings (default) | check: check now | last: check times");
+
+    private static void PrintLast(MeetingState state)
+    {
+        Console.WriteLine(state.LastAttemptedAt is long attempt
+            ? $"Last check attempted: {DateTimeOffset.FromUnixTimeMilliseconds(attempt).ToLocalTime():F}"
+            : "No check attempted yet.");
+        Console.WriteLine(state.LastCheckedAt is long time
+            ? $"Last successful check: {DateTimeOffset.FromUnixTimeMilliseconds(time).ToLocalTime():F}"
+            : "No successful check yet.");
+    }
+
     private static async Task<MeetingState> LoadStateAsync()
     {
         if (!File.Exists(StateFile)) return new MeetingState();
-        var state = JsonSerializer.Deserialize<MeetingState>(await File.ReadAllTextAsync(StateFile), MeetingEngine.JsonOptions);
+        await using var file = new FileStream(StateFile, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        var state = await JsonSerializer.DeserializeAsync<MeetingState>(file, MeetingEngine.JsonOptions);
         if (state is null || state.Version != 1 ||
             state.SeenActive is null || state.NotifiedScheduled is null || state.Scheduled is null ||
             state.Scheduled.Values.Any(item => item is null || item.Title is null))
@@ -98,10 +133,29 @@ internal static class Program
         }
     }
 
-    private static async Task CheckAsync(MeetingState state)
+    private static async Task<FileStream> AcquireCheckLockAsync(CancellationToken cancellation)
     {
+        Directory.CreateDirectory(StateDirectory);
+        while (true)
+        {
+            cancellation.ThrowIfCancellationRequested();
+            try
+            {
+                return new FileStream(LockFile, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None);
+            }
+            catch (IOException error) when ((error.HResult & 0xffff) is 32 or 33)
+            {
+                await Task.Delay(250, cancellation);
+            }
+        }
+    }
+
+    private static async Task<bool> CheckAsync(CancellationToken cancellation)
+    {
+        await using var checkLock = await AcquireCheckLockAsync(cancellation);
         try
         {
+            var state = await LoadStateAsync();
             state.LastAttemptedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             await SaveStateAsync(state);
             var activeTask = Client.GetStringAsync($"{Database}/activeMeetings.json");
@@ -114,12 +168,14 @@ internal static class Program
             state.LastCheckedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             await SaveStateAsync(state);
             Console.WriteLine("Meeting check completed.");
+            return true;
         }
         catch (StateSaveException) { throw; }
         catch (Exception error) when (error is HttpRequestException or TaskCanceledException or JsonException or
                                       InvalidDataException or NotificationException)
         {
-            Console.Error.WriteLine($"Notification check failed; retrying: {error.Message}");
+            Console.Error.WriteLine($"Notification check failed: {error.Message}");
+            return false;
         }
     }
 
