@@ -119,7 +119,7 @@
     const activeMeetingsRef = db.ref('activeMeetings');
     const scheduledMeetingsRef = db.ref('scheduledMeetings');
     const newsRef = db.ref('news');
-    const ownerEmail = 'jonathandacube@gmail.com';
+    const ownerEmails = ['jonathandacube@gmail.com', 'jonathanlam0820@gmail.com'];
     const ownerUserInfo = document.getElementById('ownerUserInfo');
     const ownerSignInLink = document.getElementById('ownerSignInLink');
     const ownerSignUpLink = document.getElementById('ownerSignUpLink');
@@ -486,7 +486,7 @@
         const accessButton = document.createElement('button');
         accessButton.type = 'button';
         const isAdmin = adminRecords.has(user.uid);
-        const isOwnerAccount = user.email.toLowerCase() === ownerEmail;
+        const isOwnerAccount = ownerEmails.includes(user.email.toLowerCase());
         accessButton.textContent = isOwnerAccount
           ? 'Owner account'
           : isAdmin ? 'Revoke admin access' : 'Give admin access';
@@ -578,7 +578,7 @@
         !user.isAnonymous &&
         user.emailVerified &&
         user.email &&
-        user.email.toLowerCase() === ownerEmail
+        ownerEmails.includes(user.email.toLowerCase())
       );
       if (!authorized && !user.isAnonymous && user.emailVerified && user.email) {
         try {

@@ -7,7 +7,7 @@
   const matchSubmissionRoot = db.ref('matchSubmissions');
   const scoreSubmissionForm = document.getElementById('scoreSubmissionForm');
   const reviewSections = Array.from(document.querySelectorAll('[data-score-review]'));
-  const ownerEmail = 'jonathandacube@gmail.com';
+  const ownerEmails = ['jonathandacube@gmail.com', 'jonathanlam0820@gmail.com'];
   const gameModes = ['Fishtopia', 'Capture the Flag', 'Tag', 'Knockback', 'Snowbrawl', 'Dont Look Down'];
   const numberFormat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 20 });
 
@@ -479,7 +479,7 @@
 
   async function canReviewScores(user) {
     if (!user || user.isAnonymous || !user.emailVerified || !user.email) return false;
-    if (user.email.toLowerCase() === ownerEmail) return true;
+    if (ownerEmails.includes(user.email.toLowerCase())) return true;
     try {
       const snapshot = await db.ref(`admins/${user.uid}`).once('value');
       const admin = snapshot.val();

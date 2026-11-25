@@ -15,7 +15,7 @@
   const db = firebase.database();
   auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL)
     .catch(error => console.error('Could not set authentication persistence:', error));
-  const ownerEmail = 'jonathandacube@gmail.com';
+  const ownerEmails = ['jonathandacube@gmail.com', 'jonathanlam0820@gmail.com'];
   const pageStatus = document.getElementById('votePageStatus');
   const proposalSection = document.getElementById('proposalSection');
   const reviewSection = document.getElementById('reviewSection');
@@ -421,7 +421,7 @@
     voteSignOut.hidden = !currentUser;
     isAdmin = false;
     isOwner = Boolean(currentUser && currentUser.emailVerified && currentUser.email &&
-      currentUser.email.toLowerCase() === ownerEmail);
+      ownerEmails.includes(currentUser.email.toLowerCase()));
     if (currentUser && currentUser.emailVerified && currentUser.email && !isOwner) {
       try {
         const snapshot = await db.ref(`admins/${user.uid}`).once('value');
