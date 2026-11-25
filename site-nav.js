@@ -43,7 +43,9 @@
 
   if (!window.firebase || !firebase.apps.length || !firebase.auth) return;
 
+  let authSequence = 0;
   firebase.auth().onAuthStateChanged(user => {
+    const sequence = ++authSequence;
     const adminLink = document.getElementById('siteAdminLink');
     const ownerLink = document.getElementById('siteOwnerLink');
     const isOwner = Boolean(
@@ -55,13 +57,16 @@
     );
     if (ownerLink) ownerLink.hidden = !isOwner;
     if (adminLink) adminLink.hidden = !isOwner;
-    if (!user || user.isAnonymous || !user.emailVerified || isOwner) return;
+    if (!user || user.isAnonymous || !user.emailVerified || !user.email || isOwner) return;
 
     firebase.database().ref(`admins/${user.uid}`).once('value')
       .then(snapshot => {
         const admin = snapshot.val();
-        if (firebase.auth().currentUser && firebase.auth().currentUser.uid === user.uid && adminLink) {
-          adminLink.hidden = !admin || admin.email !== user.email.toLowerCase();
+        if (sequence === authSequence && firebase.auth().currentUser &&
+            firebase.auth().currentUser.uid === user.uid && adminLink) {
+          const authorized = Boolean(admin && admin.email === user.email.toLowerCase());
+          adminLink.hidden = !authorized;
+          if (ownerLink) ownerLink.hidden = !(authorized && admin.owner === true);
         }
       })
       .catch(error => {

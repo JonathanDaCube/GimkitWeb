@@ -18,6 +18,12 @@ The participation leaderboard awards one point to each player in every approved 
 
 The Settings page lets signed-in users choose a unique account username, disable automatic vote popups across their account, and request a password reset email. Usernames are globally reserved and displayed throughout the site; email remains the sign-in identifier. Usernames must be 3-20 lowercase letters, numbers, underscores, or hyphens. Username changes preserve Elo history, and prior names remain reserved as aliases to the same account. Existing accounts claim their current username the next time they sign in or visit an authenticated page; a conflicting or invalid legacy name must be changed in Settings.
 
+## Owner and admin access
+
+The verified `jonathandacube@gmail.com` account is the bootstrap owner. Owners can grant admins access and promote them to owners from Owner Mode; an owner can manage other owners too. Firebase stores the role under `admins/<uid>` with a matching email and `owner: true` for owners or `owner: false` for admins. Existing admin records without the field remain admins. All privileged users must sign in with the matching verified email.
+
+Deploy both the website and `database.rules.json` (`firebase deploy --only database`) for role changes to take effect. If Owner Mode says the signed-in email is unverified, verify the email and sign out and back in. Adding an owner record does not bypass email verification or create an initial owner: if the bootstrap account cannot sign in as verified, resolve that account in Firebase Authentication first.
+
 ## Windows meeting notifications
 
 The optional companion checks the public meeting lists and shows a Windows notification when an active meeting is added or a scheduled meeting starts. It does not need a Firebase account, Cloud Functions, or a paid Firebase plan.
