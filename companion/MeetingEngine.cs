@@ -56,7 +56,8 @@ public static class MeetingEngine
         value.TryGetInt64(out long number) ? number : null;
 
     public static async Task ProcessAsync(MeetingState state, Dictionary<string, Meeting> active,
-        Dictionary<string, Meeting> scheduled, long now, Func<string, Task> notify, Func<MeetingState, Task> save)
+        Dictionary<string, Meeting> scheduled, long now, Func<string, Task> notify, Func<MeetingState, Task> save,
+        CancellationToken cancellation = default)
     {
         foreach (var (id, meeting) in scheduled)
         {
@@ -74,6 +75,7 @@ public static class MeetingEngine
 
         foreach (var (id, meeting) in active)
         {
+            cancellation.ThrowIfCancellationRequested();
             if (state.SeenActive.ContainsKey(id)) continue;
             string? relatedId = FindScheduledId(meeting, state.Scheduled);
             if (relatedId is null || !state.NotifiedScheduled.ContainsKey(relatedId))
@@ -87,6 +89,7 @@ public static class MeetingEngine
 
         foreach (var (id, meeting) in scheduled)
         {
+            cancellation.ThrowIfCancellationRequested();
             if (meeting.ScheduledAt is not long time || time > now || state.NotifiedScheduled.ContainsKey(id))
                 continue;
             if (time < state.StartedAt && !(meeting.CreatedAt >= state.StartedAt)) continue;

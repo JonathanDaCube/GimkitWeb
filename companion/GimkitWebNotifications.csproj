@@ -8,5 +8,8 @@
   </PropertyGroup>
   <ItemGroup>
     <None Update="notify.ps1" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Update="notification-icon.png" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Update="notification-icon.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <InternalsVisibleTo Include="MeetingCompanionTests" />
   </ItemGroup>
 </Project>

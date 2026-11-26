@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
 using GimkitWebNotifications;
+using Microsoft.Win32;
 
 static Dictionary<string, Meeting> Parse(string json) => MeetingEngine.ParseMeetings(json);
 static void Equal<T>(T expected, T actual)
@@ -66,6 +67,21 @@ Equal("Retry", string.Join(",", messages));
 try { Parse("[]"); throw new Exception("Invalid list was accepted."); }
 catch (InvalidDataException) { }
 
+state = new MeetingState { StartedAt = 100 };
+using (var cancel = new CancellationTokenSource())
+{
+    try
+    {
+        await MeetingEngine.ProcessAsync(state,
+            Parse("""{"a":{"title":"First"},"b":{"title":"Second"}}"""), Parse("null"), 120,
+            _ => { cancel.Cancel(); return Task.CompletedTask; }, Save, cancel.Token);
+        throw new Exception("Cancellation was not propagated.");
+    }
+    catch (OperationCanceledException) { }
+    Equal(true, state.SeenActive.ContainsKey("a"));
+    Equal(false, state.SeenActive.ContainsKey("b"));
+}
+
 const string oldState = """{"version":1,"startedAt":100,"seenActive":{"a":true},"notifiedScheduled":{"s":true},"scheduled":{"s":{"title":"Meeting","scheduledAt":200}}}""";
 state = JsonSerializer.Deserialize<MeetingState>(oldState, MeetingEngine.JsonOptions)!;
 Equal(true, state.SeenActive.ContainsKey("a"));
@@ -126,12 +142,75 @@ if (OperatingSystem.IsWindows())
         Equal(true, waitedForLock);
         Equal(1, check.ExitCode);
         Equal(true, error.Contains("Notification check failed:"));
+
+        async Task<(int ExitCode, string Output, string Error)> Run(string command)
+        {
+            using var process = Start(command);
+            Task<string> outputTask = process.StandardOutput.ReadToEndAsync();
+            Task<string> errorTask = process.StandardError.ReadToEndAsync();
+            await process.WaitForExitAsync().WaitAsync(TimeSpan.FromSeconds(30));
+            return (process.ExitCode, await outputTask, await errorTask);
+        }
+
+        try
+        {
+            var stopped = await Run("query");
+            Equal(true, stopped.Output.Contains("stopped"));
+            var started = await Run("start");
+            Equal(0, started.ExitCode);
+            Equal(true, started.Output.Contains("started"));
+            var duplicate = await Run("start");
+            Equal(true, duplicate.Output.Contains("already running"));
+            (int ExitCode, string Output, string Error) status = (0, "", "");
+            for (int i = 0; i < 30; i++)
+            {
+                status = await Run("query");
+                if (status.Output.Contains("error:")) break;
+                await Task.Delay(100);
+            }
+            Equal(1, status.ExitCode);
+            Equal(true, status.Output.Contains("error:"));
+            var restarted = await Run("restart");
+            Equal(0, restarted.ExitCode);
+            Equal(true, restarted.Output.Contains("started"));
+            var stop = await Run("stop");
+            Equal(0, stop.ExitCode);
+            Equal(true, stop.Output.Contains("stopped"));
+            Equal(true, (await Run("query")).Output.Contains("stopped"));
+            Equal(true, (await Run("stop")).Output.Contains("stopped"));
+        }
+        finally
+        {
+            await Run("stop");
+        }
+
+        string registryPath = @"Software\GimkitWebNotificationsTests-" + Guid.NewGuid().ToString("N");
+        try
+        {
+            using var key = Registry.CurrentUser.CreateSubKey(registryPath);
+            Equal(true, BackgroundChecker.EnsureStartup(key, @"C:\Program Files\Gimkit\gimkitapp.exe"));
+            Equal("\"C:\\Program Files\\Gimkit\\gimkitapp.exe\" start", key.GetValue("GimkitWebNotifications") as string);
+            Equal(false, BackgroundChecker.EnsureStartup(key, @"C:\Program Files\Gimkit\gimkitapp.exe"));
+            Equal(true, BackgroundChecker.EnsureStartup(key, @"C:\New\gimkitapp.exe"));
+        }
+        finally
+        {
+            Registry.CurrentUser.DeleteSubKey(registryPath);
+        }
     }
     finally
     {
         File.Delete(stateFile);
         File.Delete(lockFile);
+        File.Delete(Path.Combine(stateDir, "control.lock"));
+        File.Delete(Path.Combine(stateDir, "worker.lock"));
         Directory.Delete(stateDir);
+        string cache = Path.Combine(temporary, "Microsoft", "Windows", "Caches");
+        if (Directory.Exists(cache)) Directory.Delete(cache);
+        string windows = Path.Combine(temporary, "Microsoft", "Windows");
+        if (Directory.Exists(windows)) Directory.Delete(windows);
+        string microsoft = Path.Combine(temporary, "Microsoft");
+        if (Directory.Exists(microsoft)) Directory.Delete(microsoft);
         Directory.Delete(temporary);
     }
 }
