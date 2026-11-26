@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Get Windows notifications for Gimkit Community meetings with the free companion app." />
+  <link rel="icon" type="image/svg+xml" href="/GimkitWeb/icon.svg" />
+  <title>Windows App - Gimkit Community</title>
+  <link rel="stylesheet" href="/GimkitWeb/site-nav.css" />
+  <link rel="stylesheet" href="/GimkitWeb/buttons.css" />
+  <script src="/GimkitWeb/site-nav.js" defer></script>
+  <style>
+    body { font-family: Arial, sans-serif; color: #1f2937; }
+    main { max-width: 860px; }
+    .hero { display: flex; align-items: center; gap: 28px; padding: 32px; border-radius: 16px; background: #f3edff; }
+    .hero img { width: 120px; height: 120px; flex: 0 0 auto; }
+    .hero h1 { margin: 0 0 12px; }
+    .hero p { line-height: 1.5; }
+    .hero .primary-button { padding: 12px 18px; }
+    .small { color: #555; font-size: .92rem; }
+    .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; margin: 24px 0; }
+    .feature { padding: 18px; border: 1px solid #ddd; border-radius: 10px; }
+    .feature h2 { margin: 0 0 8px; font-size: 1.1rem; }
+    .feature p { margin: 0; line-height: 1.5; }
+    .setup { line-height: 1.6; }
+    .setup li { margin-bottom: 8px; }
+    code { overflow-wrap: anywhere; }
+    @media (max-width: 640px) {
+      .hero { align-items: flex-start; flex-direction: column; padding: 24px; }
+      .hero img { width: 80px; height: 80px; }
+    }
+  </style>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+</head>
+<body>
+  <main>
+    <section class="hero" aria-labelledby="appHeading">
+      <img src="/GimkitWeb/icon.svg" alt="" />
+      <div>
+        <h1 id="appHeading">Gimkit Community App</h1>
+        <p>Keep up with community meetings, even when the website is closed. Get Windows notifications when a meeting starts.</p>
+        <a class="primary-button" href="/GimkitWeb/downloads/Gimkit-Community-App-win-x64.zip" download>Download for Windows</a>
+        <p class="small">Windows x64 &middot; Free &middot; No account or .NET installation required</p>
+      </div>
+    </section>
+
+    <div class="features">
+      <section class="feature">
+        <h2>Meeting alerts</h2>
+        <p>See notifications for new active meetings and scheduled meetings when they start.</p>
+      </section>
+      <section class="feature">
+        <h2>Runs in the background</h2>
+        <p>The app checks approximately once a minute while you are signed in to Windows.</p>
+      </section>
+      <section class="feature">
+        <h2>Ready at sign-in</h2>
+        <p>Open the app once to start the checker and register it to start when you sign in.</p>
+      </section>
+    </div>
+
+    <section class="setup" aria-labelledby="setupHeading">
+      <h2 id="setupHeading">Get started</h2>
+      <ol>
+        <li>Download the ZIP file and extract all its contents to a folder you want to keep, such as Documents.</li>
+        <li>Open the extracted folder and double-click <code>gimkitapp.exe</code>. Keep the other extracted files beside it.</li>
+        <li>Read the welcome message. The app starts the background checker and enables startup for your Windows account.</li>
+      </ol>
+      <p class="small">The first check ignores meetings already in progress. Notifications require Windows to be awake, your account to be signed in, and notifications to be enabled. Do Not Disturb may hide alerts.</p>
+      <p class="small">To stop or check the app, open a terminal in its folder and run <code>gimkitapp stop</code> or <code>gimkitapp query</code>. Stopping it does not disable startup; use Windows Startup settings to do that.</p>
+    </section>
+  </main>
+  <script>
+    firebase.initializeApp({
+      apiKey: "AIzaSyDq6eOzOWLd88XG-wFo0LN1O3l2Yyvdfls",
+      authDomain: "gimkit-web.firebaseapp.com",
+      databaseURL: "https://gimkit-web-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "gimkit-web",
+      storageBucket: "gimkit-web.firebasestorage.app",
+      messagingSenderId: "192282058649",
+      appId: "1:192282058649:web:cdcdfdb49c429fc0e33d08",
+      measurementId: "G-TLCCKP056J"
+    });
+    firebase.auth().setPersistence(firebase.auth.Auth.Persistence.LOCAL)
+      .catch(error => console.error('Could not set authentication persistence:', error));
+  </script>
+</body>
+</html>

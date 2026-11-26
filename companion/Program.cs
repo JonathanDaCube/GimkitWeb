@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.Text.Json;
 using GimkitWebNotifications;
+using Microsoft.Win32;
 
 internal static class Program
 {
@@ -28,8 +29,46 @@ internal static class Program
                 PrintHelp();
                 return 2;
             }
-            switch (args.Length == 0 ? "watch" : args[0].ToLowerInvariant())
+            switch (args.Length == 0 ? "welcome" : args[0].ToLowerInvariant())
             {
+                case "welcome":
+                    Console.WriteLine("Welcome to the GimkitWeb meeting companion.");
+                    Console.WriteLine("It checks for meetings in the background and shows Windows notifications.");
+                    await BackgroundChecker.StartAsync(restart: true);
+                    using (var runKey = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run"))
+                    {
+                        bool added = BackgroundChecker.EnsureStartup(runKey, BackgroundChecker.Executable);
+                        Console.WriteLine(added ? "Registered to start when you sign in." : "Already registered to start when you sign in.");
+                    }
+                    Console.WriteLine("Use gimkitapp query, start, stop, restart, check, or last from a console.");
+                    if (!Console.IsInputRedirected)
+                    {
+                        Console.WriteLine("Press Enter to close this window.");
+                        Console.ReadLine();
+                    }
+                    return 0;
+                case "--background":
+                    await BackgroundChecker.RunAsync(async stopToken =>
+                    {
+                        string? failure = null;
+                        await CheckAsync(stopToken, reportSuccess: false, onFailure: error => failure = error);
+                        return failure;
+                    });
+                    return 0;
+                case "start":
+                    await BackgroundChecker.StartAsync(restart: false);
+                    return 0;
+                case "stop":
+                    await BackgroundChecker.StopAsync();
+                    return 0;
+                case "restart":
+                    await BackgroundChecker.StartAsync(restart: true);
+                    return 0;
+                case "query":
+                    var status = await BackgroundChecker.QueryAsync();
+                    Console.WriteLine(status is null ? "Background checker: stopped." :
+                        $"Background checker: {status.State}{(status.Error is null ? "." : $": {status.Error}")}");
+                    return status?.State == "error" ? 1 : 0;
                 case "check":
                     return await CheckAsync(cancellation.Token) ? 0 : 1;
                 case "last":
@@ -40,61 +79,30 @@ internal static class Program
                 case "-h":
                     PrintHelp();
                     return 0;
-                case "watch":
-                    break;
                 default:
                     Console.Error.WriteLine($"Unknown command: {args[0]}");
                     PrintHelp();
                     return 2;
             }
 
-            Console.WriteLine("Watching for meetings. Commands: check, last, help, quit.");
-            await CheckAsync(cancellation.Token);
-            Task<string?>? input = Task.Run(() => Console.ReadLine());
-            Task delay = Task.Delay(TimeSpan.FromSeconds(10), cancellation.Token);
-            while (!cancellation.IsCancellationRequested)
-            {
-                Task finished = input is null ? await Task.WhenAny(delay) : await Task.WhenAny(input, delay);
-                if (finished == delay)
-                {
-                    if (cancellation.IsCancellationRequested) break;
-                    await CheckAsync(cancellation.Token);
-                    delay = Task.Delay(TimeSpan.FromSeconds(10), cancellation.Token);
-                    continue;
-                }
-
-                string? command = await input!;
-                switch (command?.Trim().ToLowerInvariant())
-                {
-                    case null: break;
-                    case "check":
-                        await CheckAsync(cancellation.Token);
-                        delay = Task.Delay(TimeSpan.FromSeconds(10), cancellation.Token);
-                        break;
-                    case "last":
-                        PrintLast(await LoadStateAsync());
-                        break;
-                    case "help":
-                        Console.WriteLine("check: check now | last: check times | quit: exit");
-                        break;
-                    case "quit": return 0;
-                    case "": break;
-                    default: Console.WriteLine("Unknown command. Type help for commands."); break;
-                }
-                input = command is null ? null : Task.Run(() => Console.ReadLine());
-            }
-            return 0;
         }
         catch (Exception error)
         {
             Console.Error.WriteLine(error.Message);
+            if (args.Length == 0 && !Console.IsInputRedirected)
+            {
+                Console.WriteLine("Press Enter to close this window.");
+                Console.ReadLine();
+            }
             return 1;
         }
     }
 
     private static void PrintHelp() =>
-        Console.WriteLine("Usage: gimkitapp [watch|check|last|help]\n" +
-                          "watch: continuously monitor meetings (default) | check: check now | last: check times");
+        Console.WriteLine("Usage: gimkitapp [start|stop|restart|query|check|last|help]\n" +
+                          "No arguments: welcome, restart checker, and register it at sign-in.\n" +
+                          "start/stop/restart: control the background checker | query: checker status\n" +
+                          "check: check now | last: check times");
 
     private static void PrintLast(MeetingState state)
     {
@@ -150,7 +158,7 @@ internal static class Program
         }
     }
 
-    private static async Task<bool> CheckAsync(CancellationToken cancellation)
+    private static async Task<bool> CheckAsync(CancellationToken cancellation, bool reportSuccess = true, Action<string>? onFailure = null)
     {
         await using var checkLock = await AcquireCheckLockAsync(cancellation);
         try
@@ -158,28 +166,30 @@ internal static class Program
             var state = await LoadStateAsync();
             state.LastAttemptedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             await SaveStateAsync(state);
-            var activeTask = Client.GetStringAsync($"{Database}/activeMeetings.json");
-            var scheduledTask = Client.GetStringAsync($"{Database}/scheduledMeetings.json");
+            var activeTask = Client.GetStringAsync($"{Database}/activeMeetings.json", cancellation);
+            var scheduledTask = Client.GetStringAsync($"{Database}/scheduledMeetings.json", cancellation);
             await Task.WhenAll(activeTask, scheduledTask);
             var active = MeetingEngine.ParseMeetings(await activeTask);
             var scheduled = MeetingEngine.ParseMeetings(await scheduledTask);
             await MeetingEngine.ProcessAsync(state, active, scheduled, DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                NotifyAsync, SaveStateAsync);
+                title => NotifyAsync(title, reportSuccess), SaveStateAsync, cancellation);
             state.LastCheckedAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             await SaveStateAsync(state);
-            Console.WriteLine("Meeting check completed.");
+            if (reportSuccess) Console.WriteLine("Meeting check completed.");
             return true;
         }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { throw; }
         catch (StateSaveException) { throw; }
         catch (Exception error) when (error is HttpRequestException or TaskCanceledException or JsonException or
                                       InvalidDataException or NotificationException)
         {
-            Console.Error.WriteLine($"Notification check failed: {error.Message}");
+            if (reportSuccess) Console.Error.WriteLine($"Notification check failed: {error.Message}");
+            onFailure?.Invoke(error.Message);
             return false;
         }
     }
 
-    private static async Task NotifyAsync(string title)
+    private static async Task NotifyAsync(string title, bool reportSuccess)
     {
         var start = new ProcessStartInfo("powershell.exe")
         {
@@ -203,7 +213,7 @@ internal static class Program
                 throw new NotificationException("Windows notification timed out.");
             }
             if (process.ExitCode != 0) throw new NotificationException($"Windows notification failed: {await errors}");
-            Console.WriteLine($"Notification sent: {title}");
+            if (reportSuccess) Console.WriteLine($"Notification sent: {title}");
         }
         catch (Exception error) when (error is System.ComponentModel.Win32Exception or InvalidOperationException)
         {

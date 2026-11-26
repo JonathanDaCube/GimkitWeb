@@ -31,6 +31,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Package Windows companion
+        run: |
+          dotnet publish companion/GimkitWebNotifications.csproj -c Release -r win-x64 --self-contained true --artifacts-path "$RUNNER_TEMP/gimkit-build" -o "$RUNNER_TEMP/gimkit-companion"
+          mkdir -p downloads
+          cd "$RUNNER_TEMP/gimkit-companion"
+          zip -qr "$GITHUB_WORKSPACE/downloads/Gimkit-Community-App-win-x64.zip" .
       - name: Setup Pages
         uses: actions/configure-pages@v5
       - name: Upload artifact

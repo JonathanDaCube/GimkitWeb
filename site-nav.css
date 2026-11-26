@@ -68,9 +68,11 @@ body {
   #siteSidebar nav {
     flex-direction: row;
     gap: 4px;
+    overflow-x: auto;
   }
 
   #siteSidebar a {
     padding: 8px 10px;
+    white-space: nowrap;
   }
 }
