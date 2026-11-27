@@ -10,9 +10,9 @@ The opening popup and public results are enabled by default. When public results
 
 ## Elo scoreboard
 
-Players start at 50 Elo for each game mode. A signed-in player submits the full match roster and finishing places; an admin must approve the result before ratings change. Rating changes compare each player's placements against Elo-based expectations, with gains capped at 8 and losses capped at 2 Elo per match. The total leaderboard averages a player's six mode ratings. Registered player usernames resolve to stable account IDs so Elo history follows username changes; unregistered roster names remain keyed by name.
+Players start at 50 Elo for each game mode. A signed-in player submits the full match roster and finishing places; an admin must approve the result before ratings change. Rating changes compare each player's placements against Elo-based expectations, with gains capped at 8 and losses capped at 2 Elo per match. The total leaderboard averages a player's five mode ratings and displays the result to two decimal places. Registered player usernames resolve to stable account IDs so Elo history follows username changes; unregistered roster names remain keyed by name.
 
-The participation leaderboard awards one point to each player in every approved match, across all game modes and regardless of placement. Existing approved matches count as well.
+The participation leaderboard awards one point to each player in every approved match, across the supported game modes and regardless of placement. Existing Fishtopia results remain stored but are excluded from ratings and participation. Deploy the website and database rules together (`firebase deploy --only database`) to prevent new Fishtopia submissions.
 
 ## Account settings
 

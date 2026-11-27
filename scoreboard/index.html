@@ -52,7 +52,7 @@
       <h2 id="skillChartHeading">Your game-mode skill</h2>
       <p id="skillChartStatus" class="small" role="status" aria-live="polite">Sign in to see your Elo ratings.</p>
       <svg id="skillRadar" viewBox="0 0 360 330" role="img" aria-labelledby="skillRadarTitle skillRadarDescription" hidden>
-        <title id="skillRadarTitle">Your Elo ratings across the six game modes</title>
+        <title id="skillRadarTitle">Your Elo ratings across the five game modes</title>
         <desc id="skillRadarDescription">Each axis shows your Elo rating in a game mode, starting at 50. The center number is the average rating.</desc>
         <g id="skillRadarGrid"></g>
         <polygon id="skillArea" points="" />
@@ -73,10 +73,6 @@
         <section class="leaderboard-mode" aria-labelledby="participationLeaderboardHeading">
           <h3 id="participationLeaderboardHeading">Participation</h3>
           <ol id="scoreboardParticipationList" class="leaderboard-list" aria-live="polite"><li>Loading scoreboard…</li></ol>
-        </section>
-        <section class="leaderboard-mode" aria-labelledby="fishtopiaLeaderboardHeading">
-          <h3 id="fishtopiaLeaderboardHeading">Fishtopia</h3>
-          <ol id="scoreboardFishtopiaList" class="leaderboard-list" aria-live="polite"><li>Loading scoreboard…</li></ol>
         </section>
         <section class="leaderboard-mode" aria-labelledby="captureTheFlagLeaderboardHeading">
           <h3 id="captureTheFlagLeaderboardHeading">Capture the Flag</h3>
@@ -108,7 +104,6 @@
         <label for="scoreGameInput">Game mode
           <select id="scoreGameInput" required>
             <option value="">Select a game mode</option>
-            <option value="Fishtopia">Fishtopia</option>
             <option value="Capture the Flag">Capture the Flag</option>
             <option value="Tag">Tag</option>
             <option value="Knockback">Knockback</option>
