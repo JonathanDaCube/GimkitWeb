@@ -8,8 +8,9 @@
   const scoreSubmissionForm = document.getElementById('scoreSubmissionForm');
   const reviewSections = Array.from(document.querySelectorAll('[data-score-review]'));
   const ownerEmails = ['jonathandacube@gmail.com', 'jonathanlam0820@gmail.com'];
-  const gameModes = ['Fishtopia', 'Capture the Flag', 'Tag', 'Knockback', 'Snowbrawl', 'Dont Look Down'];
+  const gameModes = ['Capture the Flag', 'Tag', 'Knockback', 'Snowbrawl', 'Dont Look Down'];
   const numberFormat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 20 });
+  const averageFormat = new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   function isAllowedGame(game) {
     return gameModes.includes(game);
@@ -133,7 +134,7 @@
     entries.forEach((player, index) => {
       const item = document.createElement('li');
       const rating = scoreMode ? player.modeScores[scoreMode] : player.total;
-      item.textContent = `${index + 1}. ${player.username} — ${numberFormat.format(rating)} Elo`;
+      item.textContent = `${index + 1}. ${player.username} — ${(scoreMode ? numberFormat : averageFormat).format(rating)} Elo`;
       container.appendChild(item);
     });
   }
@@ -282,7 +283,7 @@
     const averageElo = gameModes.reduce((total, game) => total + modeScores[game], 0) / gameModes.length;
 
     skillArea.setAttribute('points', normalizedScores.map((score, index) => skillChartPoint(score, index, 90)).join(' '));
-    skillTotalValue.textContent = String(Math.round(averageElo));
+    skillTotalValue.textContent = averageFormat.format(averageElo);
     skillRadar.hidden = false;
     skillChartStatus.textContent = 'The radar compares each of your mode ratings with the highest rating in that mode.';
     skillModeValues.replaceChildren();
@@ -299,7 +300,7 @@
     const entries = [];
     snapshot.forEach(child => {
       const record = child.val();
-      if (record && typeof record.game === 'string' && record.players) {
+      if (record && isAllowedGame(record.game) && record.players) {
         entries.push({ ...record, key: child.key });
       }
     });
